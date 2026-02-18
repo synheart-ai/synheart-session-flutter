@@ -1,16 +1,10 @@
-# synheart_session_example
+# synheart_session example
 
-A new Flutter project.
+Demonstrates usage of the `synheart_session` Flutter plugin.
 
-## Getting Started
+This app shows how to:
+- Start and stop a wearable HR capture session
+- Receive real-time heart-rate and HSI data via streams
+- Display session state transitions in the UI
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+See `lib/main.dart` for the full source.

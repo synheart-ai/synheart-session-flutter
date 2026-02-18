@@ -45,3 +45,6 @@ app.*.map.json
 # Coverage
 coverage/
 *.lcov
+
+# Archives
+*.zip

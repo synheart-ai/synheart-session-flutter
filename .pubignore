@@ -1,5 +1,18 @@
+# Version control
+.git/
+.gitignore
+
+# Dart/Flutter tooling
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+pubspec.lock
+
 # Build artifacts
 build/
+example/build/
 
 # IDE files
 .idea/
@@ -21,3 +34,17 @@ coverage/
 *.bak
 *.swp
 *~
+
+# CI/CD
+.github/
+
+# Large / unwanted files
+example/bugreport*.zip
+*.zip
+
+# iOS framework backup
+ios/Frameworks/_SynheartFlux.xcframework.bak/
+ios/Frameworks/.gitkeep
+
+# Gitignored XCFramework (podspec handles standalone vs shared Flux)
+ios/Frameworks/SynheartFlux.xcframework/

@@ -12,20 +12,34 @@ Pod::Spec.new do |s|
   s.swift_version    = '5.9'
   s.frameworks       = 'WatchConnectivity'
 
-  # Synheart Flux (Rust) XCFramework for HSI-compliant physiological metrics
-  s.vendored_frameworks = 'Frameworks/SynheartFlux.xcframework'
-  s.preserve_paths = 'Frameworks/SynheartFlux.xcframework'
+  # Synheart Flux (Rust) XCFramework for HSI-compliant physiological metrics.
+  # Only vendored in standalone mode. When another synheart plugin (e.g.
+  # synheart_behavior) already vendors SynheartFlux, skip to avoid CocoaPods
+  # duplicate-framework errors.
+  behavior_podspec = File.expand_path('../../synheart-behavior-dart/ios/synheart_behavior.podspec', __dir__)
+  wear_podspec = File.expand_path('../../synheart-wear-dart/ios/synheart_wear.podspec', __dir__)
+  standalone = !File.exist?(behavior_podspec) && !File.exist?(wear_podspec)
 
-  s.pod_target_xcconfig = {
-    'DEFINES_MODULE' => 'YES',
-    'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-    'OTHER_LDFLAGS[sdk=iphonesimulator*]' => [
-      '-L$(PODS_TARGET_SRCROOT)/Frameworks/SynheartFlux.xcframework/ios-arm64_x86_64-simulator',
-      '-force_load $(PODS_TARGET_SRCROOT)/Frameworks/SynheartFlux.xcframework/ios-arm64_x86_64-simulator/libsynheart_flux.a'
-    ].join(' '),
-    'OTHER_LDFLAGS[sdk=iphoneos*]' => [
-      '-L$(PODS_TARGET_SRCROOT)/Frameworks/SynheartFlux.xcframework/ios-arm64',
-      '-force_load $(PODS_TARGET_SRCROOT)/Frameworks/SynheartFlux.xcframework/ios-arm64/libsynheart_flux.a'
-    ].join(' ')
-  }
+  flux_xcframework = File.join(__dir__, 'Frameworks', 'SynheartFlux.xcframework')
+  if standalone && File.exist?(flux_xcframework)
+    s.vendored_frameworks = 'Frameworks/SynheartFlux.xcframework'
+    s.preserve_paths = 'Frameworks/SynheartFlux.xcframework'
+
+    s.pod_target_xcconfig = {
+      'DEFINES_MODULE' => 'YES',
+      'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
+      'OTHER_LDFLAGS[sdk=iphonesimulator*]' => [
+        '-L$(PODS_TARGET_SRCROOT)/Frameworks/SynheartFlux.xcframework/ios-arm64_x86_64-simulator',
+        '-force_load $(PODS_TARGET_SRCROOT)/Frameworks/SynheartFlux.xcframework/ios-arm64_x86_64-simulator/libsynheart_flux.a'
+      ].join(' '),
+      'OTHER_LDFLAGS[sdk=iphoneos*]' => [
+        '-L$(PODS_TARGET_SRCROOT)/Frameworks/SynheartFlux.xcframework/ios-arm64',
+        '-force_load $(PODS_TARGET_SRCROOT)/Frameworks/SynheartFlux.xcframework/ios-arm64/libsynheart_flux.a'
+      ].join(' ')
+    }
+  else
+    s.pod_target_xcconfig = {
+      'DEFINES_MODULE' => 'YES',
+    }
+  end
 end
