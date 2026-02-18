@@ -1,6 +1,6 @@
 import Foundation
 
-/// Timer-driven mock session engine. Generates sinusoidal HR data and emits HSI frames.
+/// Timer-driven mock session engine. Generates sinusoidal HR data and emits session frames.
 class SessionEngine {
 
     typealias EventCallback = ([String: Any]) -> Void
@@ -38,7 +38,7 @@ class SessionEngine {
             "started_at_ms": startedAtMs
         ])
 
-        // Schedule periodic HSI frame emission
+        // Schedule periodic session frame emission
         let interval = TimeInterval(config.profile.emitIntervalSec)
         emitTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.emitFrame()
@@ -96,22 +96,14 @@ class SessionEngine {
         let sampleCount = windowSec // 1 sample per second
         let samples = generateMockSamples(count: sampleCount, startMs: nowMs - Int64(windowSec * 1000))
 
-        let startMs = samples.first?.timestampMs ?? nowMs
-        let hsi = FluxBridge.hrWindowToHsi(
-            sessionId: cfg.sessionId,
-            deviceId: "watch",
-            timezone: TimeZone.current.identifier,
-            startEpochMs: startMs,
-            endEpochMs: nowMs,
-            samples: samples
-        ) ?? HsiBuilder.build(samples: samples, config: cfg, seq: seq)
+        let metrics = computeMetrics(from: samples)
 
         cb([
-            "type": "hsi_frame",
+            "type": "session_frame",
             "session_id": cfg.sessionId,
             "seq": seq,
             "emitted_at_ms": nowMs,
-            "hsi_json": hsi
+            "metrics": metrics
         ])
     }
 
@@ -128,22 +120,15 @@ class SessionEngine {
         let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
         let durationActualSec = Int((nowMs - startedAtMs) / 1000)
 
-        // Build a summary HSI from the full duration
+        // Build a summary from the full duration
         let samples = generateMockSamples(count: durationActualSec, startMs: startedAtMs)
-        let hsi = FluxBridge.hrWindowToHsi(
-            sessionId: cfg.sessionId,
-            deviceId: "watch",
-            timezone: TimeZone.current.identifier,
-            startEpochMs: startedAtMs,
-            endEpochMs: nowMs,
-            samples: samples
-        ) ?? HsiBuilder.build(samples: samples, config: cfg, seq: seq)
+        let metrics = computeMetrics(from: samples)
 
         cb([
             "type": "session_summary",
             "session_id": cfg.sessionId,
             "duration_actual_sec": durationActualSec,
-            "hsi_json": hsi
+            "metrics": metrics
         ])
 
         self.config = nil
@@ -178,10 +163,51 @@ class SessionEngine {
         ])
     }
 
+    /// Compute raw physiological metrics from HR samples.
+    private func computeMetrics(from samples: [(timestampMs: Int64, bpm: Double)]) -> [String: Any] {
+        guard !samples.isEmpty else {
+            return [
+                "hr_mean_bpm": 0.0,
+                "hr_sdnn_ms": 0.0,
+                "rmssd_ms": 0.0,
+                "sample_count": 0,
+            ]
+        }
+
+        let bpms = samples.map { $0.bpm }
+        let meanBpm = bpms.reduce(0, +) / Double(bpms.count)
+
+        // Derive RR intervals from BPM
+        let rrIntervals = bpms.map { 60000.0 / $0 }
+        let meanRR = rrIntervals.reduce(0, +) / Double(rrIntervals.count)
+        let variance = rrIntervals.map { ($0 - meanRR) * ($0 - meanRR) }.reduce(0, +) / Double(rrIntervals.count)
+        let sdnn = variance.squareRoot()
+
+        // RMSSD from successive RR differences
+        var rmssd = 0.0
+        if rrIntervals.count >= 2 {
+            var sumSqDiff = 0.0
+            for i in 1..<rrIntervals.count {
+                let diff = rrIntervals[i] - rrIntervals[i - 1]
+                sumSqDiff += diff * diff
+            }
+            rmssd = (sumSqDiff / Double(rrIntervals.count - 1)).squareRoot()
+        }
+
+        return [
+            "hr_mean_bpm": (meanBpm * 10).rounded() / 10,
+            "hr_sdnn_ms": (sdnn * 100).rounded() / 100,
+            "rmssd_ms": (rmssd * 100).rounded() / 100,
+            "sample_count": samples.count,
+            "start_ms": samples.first!.timestampMs,
+            "end_ms": samples.last!.timestampMs,
+        ]
+    }
+
     /// Generate mock HR samples with sinusoidal baseline + noise (matches Dart MockHrGenerator).
-    private func generateMockSamples(count: Int, startMs: Int64) -> [HsiBuilder.HrSample] {
+    private func generateMockSamples(count: Int, startMs: Int64) -> [(timestampMs: Int64, bpm: Double)] {
         guard count > 0 else { return [] }
-        var samples: [HsiBuilder.HrSample] = []
+        var samples: [(timestampMs: Int64, bpm: Double)] = []
         let baseline = 72.0
         let amplitude = 5.0
         let cycleSec = 4.0

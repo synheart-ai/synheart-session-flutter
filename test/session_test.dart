@@ -27,7 +27,7 @@ void main() {
       expect(events.last, isA<SessionSummary>());
       expect((events.first as SessionStarted).sessionId, 'lifecycle-1');
 
-      final frames = events.whereType<HsiFrame>().toList();
+      final frames = events.whereType<SessionFrame>().toList();
       expect(frames, isNotEmpty);
     });
 
@@ -44,7 +44,7 @@ void main() {
 
       await for (final event in stream) {
         events.add(event);
-        if (event is HsiFrame) {
+        if (event is SessionFrame) {
           await session.stopSession('stop-test');
         }
       }
@@ -138,7 +138,7 @@ void main() {
       );
 
       final events = await session.startSession(config).toList();
-      final frames = events.whereType<HsiFrame>().toList();
+      final frames = events.whereType<SessionFrame>().toList();
 
       expect(frames, isNotEmpty);
       for (var i = 1; i < frames.length; i++) {

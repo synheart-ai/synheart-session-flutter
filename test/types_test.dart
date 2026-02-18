@@ -147,19 +147,19 @@ void main() {
       expect(started.startedAtMs, 1000);
     });
 
-    test('fromJson dispatches HsiFrame', () {
+    test('fromJson dispatches SessionFrame', () {
       final event = SessionEvent.fromJson({
-        'type': 'hsi_frame',
+        'type': 'session_frame',
         'session_id': 'abc',
         'seq': 1,
         'emitted_at_ms': 2000,
         'encoding': 'json_utf8',
-        'hsi_json': <String, dynamic>{'hsi_version': '1.0'},
+        'metrics': <String, dynamic>{'hr_mean_bpm': 72.0},
       });
-      expect(event, isA<HsiFrame>());
-      final frame = event as HsiFrame;
+      expect(event, isA<SessionFrame>());
+      final frame = event as SessionFrame;
       expect(frame.seq, 1);
-      expect(frame.hsiJson['hsi_version'], '1.0');
+      expect(frame.metrics['hr_mean_bpm'], 72.0);
     });
 
     test('fromJson dispatches SessionSummary', () {
@@ -168,7 +168,7 @@ void main() {
         'session_id': 'abc',
         'duration_actual_sec': 300,
         'encoding': 'json_utf8',
-        'hsi_json': <String, dynamic>{'hsi_version': '1.0'},
+        'metrics': <String, dynamic>{'hr_mean_bpm': 72.0},
       });
       expect(event, isA<SessionSummary>());
       expect((event as SessionSummary).durationActualSec, 300);
@@ -204,16 +204,16 @@ void main() {
       expect((decoded as SessionStarted).startedAtMs, 100);
     });
 
-    test('HsiFrame toJson roundtrip', () {
-      const event = HsiFrame(
+    test('SessionFrame toJson roundtrip', () {
+      const event = SessionFrame(
         sessionId: 'x',
         seq: 5,
         emittedAtMs: 500,
-        hsiJson: {'key': 'value'},
+        metrics: {'hr_mean_bpm': 72.0},
       );
       final decoded = SessionEvent.fromJson(event.toJson());
-      expect(decoded, isA<HsiFrame>());
-      expect((decoded as HsiFrame).seq, 5);
+      expect(decoded, isA<SessionFrame>());
+      expect((decoded as SessionFrame).seq, 5);
     });
   });
 

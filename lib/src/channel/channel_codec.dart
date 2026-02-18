@@ -24,7 +24,7 @@ SessionStatus? decodeSessionStatus(dynamic raw) {
 
 /// Recursively converts platform channel maps (`Map<Object?, Object?>`)
 /// into `Map<String, dynamic>` so that `as Map<String, dynamic>` casts
-/// succeed on nested dictionaries like `hsi_json`.
+/// succeed on nested dictionaries like `metrics`.
 Map<String, dynamic> _deepCast(Map<dynamic, dynamic> map) {
   return map.map<String, dynamic>((key, value) {
     return MapEntry(key as String, _deepCastValue(value));

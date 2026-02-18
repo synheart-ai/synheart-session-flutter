@@ -34,7 +34,7 @@ class MockSessionEngine {
       ),
     );
 
-    // Schedule HsiFrame emissions
+    // Schedule SessionFrame emissions
     final intervalDuration = Duration(seconds: config.profile.emitIntervalSec);
     session
       ..timer = Timer.periodic(intervalDuration, (_) {
@@ -51,11 +51,11 @@ class MockSessionEngine {
         }
 
         controller.add(
-          HsiFrame(
+          SessionFrame(
             sessionId: config.sessionId,
             seq: session.seq,
             emittedAtMs: now,
-            hsiJson: _buildMockHsi(config, session),
+            metrics: _buildMockMetrics(config, session),
           ),
         );
       })
@@ -140,7 +140,7 @@ class MockSessionEngine {
         SessionSummary(
           sessionId: sessionId,
           durationActualSec: durationActual,
-          hsiJson: _buildMockHsi(session.config, session),
+          metrics: _buildMockMetrics(session.config, session),
         ),
       )
       ..close();
@@ -165,7 +165,7 @@ class MockSessionEngine {
     z: 0.95 + _accelRng.nextDouble() * 0.1,
   );
 
-  Map<String, dynamic> _buildMockHsi(
+  Map<String, dynamic> _buildMockMetrics(
     SessionConfig config,
     _RunningSession session,
   ) {
@@ -180,29 +180,16 @@ class MockSessionEngine {
     final sdnn = _computeSdnn(bpmValues);
 
     return {
-      'hsi_version': '1.0',
-      'producer': 'synheart-session-dart/mock',
-      'windows': [
-        {
-          'start_ms': windowSamples.first.timestampMs,
-          'end_ms': windowSamples.last.timestampMs,
-          'sample_count': windowSamples.length,
-        },
-      ],
-      'axes': {
-        'physiological': {
-          'hr_mean_bpm': double.parse(meanBpm.toStringAsFixed(1)),
-          'hr_sdnn_ms': double.parse(sdnn.toStringAsFixed(2)),
-          'rmssd_ms': double.parse((sdnn * 0.8).toStringAsFixed(2)),
-        },
-      },
-      'privacy': {'raw_samples_included': false},
-      'meta': {
-        'mock': true,
-        'session_id': config.sessionId,
-        'mode': config.mode.value,
-        'seq': session.seq,
-      },
+      'hr_mean_bpm': double.parse(meanBpm.toStringAsFixed(1)),
+      'hr_sdnn_ms': double.parse(sdnn.toStringAsFixed(2)),
+      'rmssd_ms': double.parse((sdnn * 0.8).toStringAsFixed(2)),
+      'sample_count': windowSamples.length,
+      'start_ms': windowSamples.first.timestampMs,
+      'end_ms': windowSamples.last.timestampMs,
+      'mock': true,
+      'session_id': config.sessionId,
+      'mode': config.mode.value,
+      'seq': session.seq,
     };
   }
 

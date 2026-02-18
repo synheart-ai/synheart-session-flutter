@@ -8,7 +8,7 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 
-/** Timer-driven mock session engine. Generates sinusoidal HR data and emits HSI frames. */
+/** Timer-driven mock session engine. Generates sinusoidal HR data and emits session frames. */
 class SessionEngine {
 
     private var config: SessionConfig? = null
@@ -43,7 +43,7 @@ class SessionEngine {
             "started_at_ms" to startedAtMs
         ))
 
-        // Schedule periodic HSI frame emission
+        // Schedule periodic session frame emission
         val intervalMs = config.profile.emitIntervalSec.toLong() * 1000
         emitRunnable = object : Runnable {
             override fun run() {
@@ -101,14 +101,14 @@ class SessionEngine {
         val sampleCount = windowSec // 1 sample per second
         val samples = generateMockSamples(sampleCount, nowMs - windowSec * 1000L)
 
-        val hsi = HsiBuilder.build(samples, cfg, seq)
+        val metrics = computeMetrics(samples)
 
         cb(mapOf(
-            "type" to "hsi_frame",
+            "type" to "session_frame",
             "session_id" to cfg.sessionId,
             "seq" to seq,
             "emitted_at_ms" to nowMs,
-            "hsi_json" to hsi
+            "metrics" to metrics
         ))
     }
 
@@ -124,19 +124,60 @@ class SessionEngine {
         val nowMs = System.currentTimeMillis()
         val durationActualSec = ((nowMs - startedAtMs) / 1000).toInt()
 
-        // Build a summary HSI from the full duration
+        // Build a summary from the full duration
         val samples = generateMockSamples(durationActualSec, startedAtMs)
-        val hsi = HsiBuilder.build(samples, cfg, seq)
+        val metrics = computeMetrics(samples)
 
         cb(mapOf(
             "type" to "session_summary",
             "session_id" to cfg.sessionId,
             "duration_actual_sec" to durationActualSec,
-            "hsi_json" to hsi
+            "metrics" to metrics
         ))
 
         this.config = null
         this.callback = null
+    }
+
+    /** Compute raw physiological metrics from HR samples. */
+    private fun computeMetrics(samples: List<Pair<Long, Double>>): Map<String, Any> {
+        if (samples.isEmpty()) {
+            return mapOf(
+                "hr_mean_bpm" to 0.0,
+                "hr_sdnn_ms" to 0.0,
+                "rmssd_ms" to 0.0,
+                "sample_count" to 0
+            )
+        }
+
+        val bpms = samples.map { it.second }
+        val meanBpm = bpms.average()
+
+        // Derive RR intervals from BPM
+        val rrIntervals = bpms.map { 60000.0 / it }
+        val meanRR = rrIntervals.average()
+        val variance = rrIntervals.map { (it - meanRR) * (it - meanRR) }.average()
+        val sdnn = kotlin.math.sqrt(variance)
+
+        // RMSSD from successive RR differences
+        var rmssd = 0.0
+        if (rrIntervals.size >= 2) {
+            var sumSqDiff = 0.0
+            for (i in 1 until rrIntervals.size) {
+                val diff = rrIntervals[i] - rrIntervals[i - 1]
+                sumSqDiff += diff * diff
+            }
+            rmssd = kotlin.math.sqrt(sumSqDiff / (rrIntervals.size - 1))
+        }
+
+        return mapOf(
+            "hr_mean_bpm" to (meanBpm * 10).toLong() / 10.0,
+            "hr_sdnn_ms" to (sdnn * 100).toLong() / 100.0,
+            "rmssd_ms" to (rmssd * 100).toLong() / 100.0,
+            "sample_count" to samples.size,
+            "start_ms" to samples.first().first,
+            "end_ms" to samples.last().first
+        )
     }
 
     /** Generate mock HR samples with sinusoidal baseline + noise (matches Dart MockHrGenerator). */

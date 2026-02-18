@@ -48,7 +48,7 @@ void main() {
       engine.dispose();
     });
 
-    test('emits SessionStarted then HsiFrames then SessionSummary', () async {
+    test('emits SessionStarted then session frames then SessionSummary', () async {
       final config = SessionConfig(
         sessionId: 'test-1',
         mode: SessionMode.focus,
@@ -61,33 +61,25 @@ void main() {
       expect(events.first, isA<SessionStarted>());
       expect(events.last, isA<SessionSummary>());
 
-      final frames = events.whereType<HsiFrame>().toList();
+      final frames = events.whereType<SessionFrame>().toList();
       expect(frames, isNotEmpty);
     });
 
-    test('HsiFrame has required HSI 1.0 keys', () async {
+    test('SessionFrame has required session metrics keys', () async {
       final config = SessionConfig(
-        sessionId: 'test-hsi',
+        sessionId: 'test-metrics',
         mode: SessionMode.breathing,
         durationSec: 2,
         profile: const ComputeProfile(windowSec: 10, emitIntervalSec: 1),
       );
 
       final events = await engine.startSession(config).toList();
-      final frame = events.whereType<HsiFrame>().first;
-      final hsi = frame.hsiJson;
+      final frame = events.whereType<SessionFrame>().first;
+      final m = frame.metrics;
 
-      expect(hsi['hsi_version'], '1.0');
-      expect(hsi['producer'], isNotNull);
-      expect(hsi['windows'], isA<List<dynamic>>());
-      expect(hsi['axes'], isA<Map<String, dynamic>>());
-      expect(
-        (hsi['axes'] as Map<String, dynamic>)['physiological'],
-        isA<Map<String, dynamic>>(),
-      );
-      expect(hsi['privacy'], isA<Map<String, dynamic>>());
-      expect(hsi['meta'], isA<Map<String, dynamic>>());
-      expect((hsi['meta'] as Map<String, dynamic>)['mock'], isTrue);
+      expect(m['hr_mean_bpm'], isA<double>());
+      expect(m['hr_sdnn_ms'], isA<double>());
+      expect(m['rmssd_ms'], isA<double>());
     });
 
     test('stop triggers early summary', () async {
@@ -103,7 +95,7 @@ void main() {
 
       await for (final event in stream) {
         events.add(event);
-        if (event is HsiFrame) {
+        if (event is SessionFrame) {
           // Stop after first frame
           await engine.stopSession('test-stop');
         }

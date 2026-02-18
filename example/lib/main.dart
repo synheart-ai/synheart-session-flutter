@@ -94,8 +94,8 @@ class _SessionPageState extends State<SessionPage> {
                   'Session started (${config.mode.value})',
                   _LogType.success,
                 );
-              case HsiFrame():
-                _handleHsiFrame(event);
+              case SessionFrame():
+                _handleSessionFrame(event);
               case BiosignalFrame():
                 _handleBiosignalFrame(event);
               case SessionSummary():
@@ -121,21 +121,11 @@ class _SessionPageState extends State<SessionPage> {
         );
   }
 
-  void _handleHsiFrame(HsiFrame frame) {
-    final meta = frame.hsiJson['meta'] as Map<String, dynamic>?;
-    final axes = frame.hsiJson['axes'] as Map<String, dynamic>?;
-    final physio = axes?['physiological'] as Map<String, dynamic>?;
-
-    // Flux puts raw values in meta; HsiBuilder fallback uses axes.physiological
-    final hr =
-        (meta?['hr_mean_bpm'] as num?)?.toDouble() ??
-        (physio?['hr_mean_bpm'] as num?)?.toDouble() ??
-        0;
-    final sdnn =
-        (meta?['hr_std_bpm'] as num?)?.toDouble() ??
-        (physio?['hr_sdnn_ms'] as num?)?.toDouble() ??
-        0;
-    final rmssd = (physio?['rmssd_ms'] as num?)?.toDouble() ?? 0;
+  void _handleSessionFrame(SessionFrame frame) {
+    final m = frame.metrics;
+    final hr = (m['hr_mean_bpm'] as num?)?.toDouble() ?? 0;
+    final sdnn = (m['hr_sdnn_ms'] as num?)?.toDouble() ?? 0;
+    final rmssd = (m['rmssd_ms'] as num?)?.toDouble() ?? 0;
 
     setState(() {
       _currentSeq = frame.seq;

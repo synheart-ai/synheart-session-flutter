@@ -21,14 +21,12 @@ Future<void> main() async {
     switch (event) {
       case SessionStarted():
         print('Session started at ${event.startedAtMs}');
-      case HsiFrame():
-        final hsi = event.hsiJson;
-        final axes = hsi['axes'] as Map<String, dynamic>;
-        final physio = axes['physiological'] as Map<String, dynamic>;
+      case SessionFrame():
+        final m = event.metrics;
         print(
-          'HSI #${event.seq}: '
-          'hr=${physio['hr_mean_bpm']} bpm, '
-          'sdnn=${physio['hr_sdnn_ms']} ms',
+          'Frame #${event.seq}: '
+          'hr=${m['hr_mean_bpm']} bpm, '
+          'sdnn=${m['hr_sdnn_ms']} ms',
         );
       case BiosignalFrame():
         final latest = event.samples.last;

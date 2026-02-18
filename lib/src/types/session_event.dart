@@ -9,7 +9,7 @@ sealed class SessionEvent {
     final type = json['type'] as String;
     return switch (type) {
       'session_started' => SessionStarted.fromJson(json),
-      'hsi_frame' => HsiFrame.fromJson(json),
+      'session_frame' => SessionFrame.fromJson(json),
       'biosignal_frame' => BiosignalFrame.fromJson(json),
       'session_summary' => SessionSummary.fromJson(json),
       'session_error' => SessionError.fromJson(json),
@@ -58,46 +58,46 @@ class SessionStarted extends SessionEvent {
 }
 
 @immutable
-class HsiFrame extends SessionEvent {
-  const HsiFrame({
+class SessionFrame extends SessionEvent {
+  const SessionFrame({
     required super.sessionId,
     required this.seq,
     required this.emittedAtMs,
-    required this.hsiJson,
+    required this.metrics,
     this.encoding = PayloadEncoding.jsonUtf8,
   });
 
-  factory HsiFrame.fromJson(Map<String, dynamic> json) {
-    return HsiFrame(
+  factory SessionFrame.fromJson(Map<String, dynamic> json) {
+    return SessionFrame(
       sessionId: json['session_id'] as String,
       seq: json['seq'] as int,
       emittedAtMs: json['emitted_at_ms'] as int,
       encoding: json['encoding'] != null
           ? PayloadEncoding.fromString(json['encoding'] as String)
           : PayloadEncoding.jsonUtf8,
-      hsiJson: json['hsi_json'] as Map<String, dynamic>,
+      metrics: json['metrics'] as Map<String, dynamic>,
     );
   }
 
   final int seq;
   final int emittedAtMs;
   final PayloadEncoding encoding;
-  final Map<String, dynamic> hsiJson;
+  final Map<String, dynamic> metrics;
 
   @override
   Map<String, dynamic> toJson() => {
-    'type': 'hsi_frame',
+    'type': 'session_frame',
     'session_id': sessionId,
     'seq': seq,
     'emitted_at_ms': emittedAtMs,
     'encoding': encoding.value,
-    'hsi_json': hsiJson,
+    'metrics': metrics,
   };
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is HsiFrame &&
+      other is SessionFrame &&
           sessionId == other.sessionId &&
           seq == other.seq &&
           emittedAtMs == other.emittedAtMs &&
@@ -108,7 +108,7 @@ class HsiFrame extends SessionEvent {
 
   @override
   String toString() =>
-      'HsiFrame(sessionId: $sessionId, seq: $seq, '
+      'SessionFrame(sessionId: $sessionId, seq: $seq, '
       'emittedAtMs: $emittedAtMs, encoding: ${encoding.value})';
 }
 
@@ -117,7 +117,7 @@ class SessionSummary extends SessionEvent {
   const SessionSummary({
     required super.sessionId,
     required this.durationActualSec,
-    required this.hsiJson,
+    required this.metrics,
     this.encoding = PayloadEncoding.jsonUtf8,
   });
 
@@ -128,13 +128,13 @@ class SessionSummary extends SessionEvent {
       encoding: json['encoding'] != null
           ? PayloadEncoding.fromString(json['encoding'] as String)
           : PayloadEncoding.jsonUtf8,
-      hsiJson: json['hsi_json'] as Map<String, dynamic>,
+      metrics: json['metrics'] as Map<String, dynamic>,
     );
   }
 
   final int durationActualSec;
   final PayloadEncoding encoding;
-  final Map<String, dynamic> hsiJson;
+  final Map<String, dynamic> metrics;
 
   @override
   Map<String, dynamic> toJson() => {
@@ -142,7 +142,7 @@ class SessionSummary extends SessionEvent {
     'session_id': sessionId,
     'duration_actual_sec': durationActualSec,
     'encoding': encoding.value,
-    'hsi_json': hsiJson,
+    'metrics': metrics,
   };
 
   @override

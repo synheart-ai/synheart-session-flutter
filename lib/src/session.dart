@@ -24,7 +24,7 @@ class SynheartSession {
   bool _disposed = false;
 
   /// Start a session. Returns stream of SessionEvents.
-  /// Stream lifecycle: SessionStarted -> HsiFrame* -> SessionSummary
+  /// Stream lifecycle: SessionStarted -> SessionFrame* -> SessionSummary
   Stream<SessionEvent> startSession(SessionConfig config) {
     _checkDisposed();
 
