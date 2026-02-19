@@ -13,14 +13,14 @@ class MockBehaviorProvider implements BehaviorProvider {
   BehaviorSnapshot currentSnapshot() {
     return BehaviorSnapshot(
       typingCadence: 3.5,
-      interKeyLatency: 120.0,
+      interKeyLatency: 120,
       burstLength: 8,
       scrollVelocity: 120.5,
       scrollAcceleration: 15.2,
       scrollJitter: 3.1,
       tapRate: 2.3,
       appSwitchesPerMinute: 4,
-      foregroundDuration: 45.0,
+      foregroundDuration: 45,
       idleGapSeconds: 2.1,
       stabilityIndex: 0.82,
       fragmentationIndex: 0.15,

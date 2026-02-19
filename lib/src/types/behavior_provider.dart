@@ -6,6 +6,7 @@ import 'package:meta/meta.dart';
 @immutable
 class BehaviorSnapshot {
   const BehaviorSnapshot({
+    required this.timestamp,
     this.typingCadence,
     this.interKeyLatency,
     this.burstLength,
@@ -18,7 +19,6 @@ class BehaviorSnapshot {
     this.idleGapSeconds,
     this.stabilityIndex,
     this.fragmentationIndex,
-    required this.timestamp,
   });
 
   factory BehaviorSnapshot.fromJson(Map<String, dynamic> json) {
@@ -123,20 +123,20 @@ class BehaviorSnapshot {
 
   @override
   int get hashCode => Object.hash(
-        typingCadence,
-        interKeyLatency,
-        burstLength,
-        scrollVelocity,
-        scrollAcceleration,
-        scrollJitter,
-        tapRate,
-        appSwitchesPerMinute,
-        foregroundDuration,
-        idleGapSeconds,
-        stabilityIndex,
-        fragmentationIndex,
-        timestamp,
-      );
+    typingCadence,
+    interKeyLatency,
+    burstLength,
+    scrollVelocity,
+    scrollAcceleration,
+    scrollJitter,
+    tapRate,
+    appSwitchesPerMinute,
+    foregroundDuration,
+    idleGapSeconds,
+    stabilityIndex,
+    fragmentationIndex,
+    timestamp,
+  );
 
   @override
   String toString() =>
@@ -146,7 +146,8 @@ class BehaviorSnapshot {
 }
 
 /// Abstraction over any behavioral signal source (mock, synheart-behavior SDK).
-/// Pull-based — `MockSessionEngine` queries [currentSnapshot] at each frame tick.
+/// Pull-based — `MockSessionEngine` queries [currentSnapshot] at each frame
+/// tick.
 abstract class BehaviorProvider {
   bool get isAvailable;
   String get name;

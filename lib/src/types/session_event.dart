@@ -86,7 +86,8 @@ class SessionFrame extends SessionEvent {
   final PayloadEncoding encoding;
   final Map<String, dynamic> metrics;
 
-  /// Behavioral signal snapshot, present when a [BehaviorProvider] is configured.
+  /// Behavioral signal snapshot, present when a behavior provider is
+  /// configured.
   final Map<String, dynamic>? behavior;
 
   @override
@@ -147,7 +148,8 @@ class SessionSummary extends SessionEvent {
   final PayloadEncoding encoding;
   final Map<String, dynamic> metrics;
 
-  /// Behavioral signal snapshot, present when a [BehaviorProvider] is configured.
+  /// Behavioral signal snapshot, present when a behavior provider is
+  /// configured.
   final Map<String, dynamic>? behavior;
 
   @override

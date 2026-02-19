@@ -45,6 +45,8 @@ class _SessionPageState extends State<SessionPage> {
   double _lastHr = 0;
   double _lastSdnn = 0;
   double _lastRmssd = 0;
+  double? _lastStability;
+  double? _lastFragmentation;
   final List<_LogEntry> _log = [];
   final List<double> _hrHistory = [];
   final _scrollController = ScrollController();
@@ -52,7 +54,11 @@ class _SessionPageState extends State<SessionPage> {
   @override
   void initState() {
     super.initState();
-    _session = SynheartSession.mock(seed: 42);
+    _session = SynheartSession.mock(
+      seed: 42,
+      behaviorProvider: MockBehaviorProvider(),
+    );
+    _logWatchStatus();
   }
 
   @override
@@ -63,11 +69,30 @@ class _SessionPageState extends State<SessionPage> {
     super.dispose();
   }
 
+  /// Query watch connectivity on init to demonstrate getWatchStatus() / WatchStatus.
+  Future<void> _logWatchStatus() async {
+    final ws = await _session!.getWatchStatus();
+    if (ws != null) {
+      _addLog(
+        'Watch: supported=${ws.supported} reachable=${ws.reachable} '
+        'paired=${ws.paired} installed=${ws.installed}',
+        _LogType.info,
+      );
+    } else {
+      _addLog('Watch: not available (mock mode)', _LogType.info);
+    }
+  }
+
   void _start() {
     final config = SessionConfig(
       mode: _mode,
       durationSec: _durationSec,
-      profile: const ComputeProfile(windowSec: 10, emitIntervalSec: 3),
+      windowLabel: '${_mode.value}_session',
+      profile: ComputeProfile(
+        windowSec: 10,
+        emitIntervalSec: 3,
+        rawEmitIntervalSec: 2,
+      ),
       includeRawSamples: true,
     );
 
@@ -78,47 +103,81 @@ class _SessionPageState extends State<SessionPage> {
       _lastHr = 0;
       _lastSdnn = 0;
       _lastRmssd = 0;
+      _lastStability = null;
+      _lastFragmentation = null;
       _log.clear();
       _hrHistory.clear();
     });
 
-    _addLog('Starting session...', _LogType.info);
+    _addLog('Starting session (label=${config.windowLabel})...', _LogType.info);
 
-    _subscription = _session!
-        .startSession(config)
-        .listen(
-          (event) {
-            switch (event) {
-              case SessionStarted():
-                _addLog(
-                  'Session started (${config.mode.value})',
-                  _LogType.success,
-                );
-              case SessionFrame():
-                _handleSessionFrame(event);
-              case BiosignalFrame():
-                _handleBiosignalFrame(event);
-              case SessionSummary():
-                _addLog(
-                  'Session complete: ${event.durationActualSec}s',
-                  _LogType.success,
-                );
-              case SessionError():
-                _addLog(
-                  'Error [${event.code.value}]: ${event.message}',
-                  _LogType.error,
-                );
-            }
-          },
-          onDone: () {
-            setState(() => _running = false);
-            _addLog('Stream closed', _LogType.info);
-          },
-          onError: (Object e) {
-            _addLog('Stream error: $e', _LogType.error);
-            setState(() => _running = false);
-          },
+    try {
+      _subscription = _session!
+          .startSession(config)
+          .listen(
+            _handleEvent,
+            onDone: () {
+              setState(() => _running = false);
+              _addLog('Stream closed', _LogType.info);
+            },
+            onError: (Object e) {
+              if (e is SessionInvalidStateError) {
+                _addLog('Invalid state: ${e.message}', _LogType.error);
+              } else if (e is SessionPermissionDeniedError) {
+                _addLog('Permission denied: ${e.message}', _LogType.error);
+              } else if (e is SessionSensorUnavailableError) {
+                _addLog('Sensor unavailable: ${e.message}', _LogType.error);
+              } else if (e is SynheartSessionError) {
+                _addLog('Session error: ${e.message}', _LogType.error);
+              } else {
+                _addLog('Stream error: $e', _LogType.error);
+              }
+              setState(() => _running = false);
+            },
+          );
+    } on SessionInvalidStateError catch (e) {
+      _addLog('Cannot start: ${e.message}', _LogType.error);
+      setState(() => _running = false);
+    }
+  }
+
+  void _handleEvent(SessionEvent event) {
+    // Demonstrate toJson() serialization on every event
+    final json = event.toJson();
+    assert(json['type'] is String, 'toJson() must include type');
+
+    switch (event) {
+      case SessionStarted():
+        _addLog(
+          'Session started (${_activeConfig!.mode.value}) '
+          'at ${DateTime.fromMillisecondsSinceEpoch(event.startedAtMs).toIso8601String()}',
+          _LogType.success,
         );
+        _queryStatus();
+
+      case SessionFrame():
+        _handleSessionFrame(event);
+
+      case BiosignalFrame():
+        _handleBiosignalFrame(event);
+
+      case SessionSummary():
+        _handleSessionSummary(event);
+
+      case SessionError():
+        _handleSessionError(event);
+    }
+  }
+
+  Future<void> _queryStatus() async {
+    final status = await _session!.getStatus();
+    if (status != null) {
+      _addLog(
+        'Status: id=${status.sessionId.substring(0, 8)}... '
+        'active=${status.active} seq=${status.lastSeq}',
+        _LogType.info,
+      );
+    }
   }
 
   void _handleSessionFrame(SessionFrame frame) {
@@ -127,18 +186,35 @@ class _SessionPageState extends State<SessionPage> {
     final sdnn = (m['hr_sdnn_ms'] as num?)?.toDouble() ?? 0;
     final rmssd = (m['rmssd_ms'] as num?)?.toDouble() ?? 0;
 
+    // Extract behavioral signals beyond just stability_index
+    final behavior = frame.behavior;
+    final stability = (behavior?['stability_index'] as num?)?.toDouble();
+    final fragmentation = (behavior?['fragmentation_index'] as num?)
+        ?.toDouble();
+    final appSwitches = behavior?['app_switches_per_minute'] as int?;
+
     setState(() {
       _currentSeq = frame.seq;
       _lastHr = hr;
       _lastSdnn = sdnn;
       _lastRmssd = rmssd;
+      if (stability != null) _lastStability = stability;
+      if (fragmentation != null) _lastFragmentation = fragmentation;
       _hrHistory.add(hr);
       if (_hrHistory.length > 60) _hrHistory.removeAt(0);
     });
 
+    // Show emittedAtMs, encoding, and behavioral fields
+    final emittedAt = DateTime.fromMillisecondsSinceEpoch(frame.emittedAtMs);
+    final encodingStr = frame.encoding.value;
     _addLog(
       '#${frame.seq}  HR ${hr.toStringAsFixed(1)} bpm  '
-      'SDNN ${sdnn.toStringAsFixed(1)} ms',
+      'SDNN ${sdnn.toStringAsFixed(1)} ms  '
+      'enc=$encodingStr  '
+      'at ${emittedAt.hour}:${emittedAt.minute.toString().padLeft(2, '0')}:${emittedAt.second.toString().padLeft(2, '0')}'
+      '${stability != null ? '  stab=${stability.toStringAsFixed(2)}' : ''}'
+      '${fragmentation != null ? '  frag=${fragmentation.toStringAsFixed(2)}' : ''}'
+      '${appSwitches != null ? '  appSw=$appSwitches' : ''}',
       _LogType.data,
     );
   }
@@ -161,12 +237,80 @@ class _SessionPageState extends State<SessionPage> {
           )
         : 0.0;
 
+    // Show all BiosignalSample fields: timestampMs, bpm, rrIntervalMs, accelerometer, spo2
+    // Also show BiosignalFrame.emittedAtMs
     _addLog(
-      'BIO #${frame.seq}  BPM ${latest.bpm.toStringAsFixed(1)}  '
+      'BIO #${frame.seq}  '
+      'ts=${latest.timestampMs}  '
+      'BPM ${latest.bpm.toStringAsFixed(1)}  '
       'RR ${latest.rrIntervalMs?.toStringAsFixed(0) ?? "-"} ms  '
-      'Accel ${accelMag.toStringAsFixed(2)}',
+      'Accel ${accelMag.toStringAsFixed(2)}  '
+      'SpO2 ${latest.spo2?.toStringAsFixed(0) ?? "-"}  '
+      'emitted=${frame.emittedAtMs}',
       _LogType.data,
     );
+  }
+
+  void _handleSessionSummary(SessionSummary event) {
+    // Show summary metrics, encoding, and behavioral summary
+    final sm = event.metrics;
+    final summaryHr = (sm['hr_mean_bpm'] as num?)?.toDouble();
+    final summarySdnn = (sm['hr_sdnn_ms'] as num?)?.toDouble();
+    final summaryRmssd = (sm['rmssd_ms'] as num?)?.toDouble();
+    final sampleCount = sm['sample_count'] as int?;
+
+    final behavior = event.behavior;
+    final stability = (behavior?['stability_index'] as num?)?.toDouble();
+    final fragmentation = (behavior?['fragmentation_index'] as num?)
+        ?.toDouble();
+    final typingCadence = (behavior?['typing_cadence'] as num?)?.toDouble();
+    final scrollVelocity = (behavior?['scroll_velocity'] as num?)?.toDouble();
+    final idleGap = (behavior?['idle_gap_seconds'] as num?)?.toDouble();
+
+    _addLog(
+      'Session complete: ${event.durationActualSec}s  '
+      'enc=${event.encoding.value}',
+      _LogType.success,
+    );
+
+    if (summaryHr != null) {
+      _addLog(
+        '  Metrics: HR=${summaryHr.toStringAsFixed(1)} '
+        'SDNN=${summarySdnn?.toStringAsFixed(1) ?? "-"} '
+        'RMSSD=${summaryRmssd?.toStringAsFixed(1) ?? "-"} '
+        'samples=$sampleCount',
+        _LogType.success,
+      );
+    }
+
+    if (behavior != null) {
+      _addLog(
+        '  Behavior: stab=${stability?.toStringAsFixed(2) ?? "-"} '
+        'frag=${fragmentation?.toStringAsFixed(2) ?? "-"} '
+        'typing=${typingCadence?.toStringAsFixed(1) ?? "-"}/s '
+        'scroll=${scrollVelocity?.toStringAsFixed(1) ?? "-"}px/s '
+        'idle=${idleGap?.toStringAsFixed(1) ?? "-"}s',
+        _LogType.success,
+      );
+    }
+  }
+
+  void _handleSessionError(SessionError event) {
+    // Use SessionErrorCode enum directly (not string matching)
+    final String msg;
+    switch (event.code) {
+      case SessionErrorCode.permissionDenied:
+        msg = 'Permission denied: ${event.message}';
+      case SessionErrorCode.sensorUnavailable:
+        msg = 'Sensor unavailable: ${event.message}';
+      case SessionErrorCode.lowBattery:
+        msg = 'Low battery: ${event.message}';
+      case SessionErrorCode.osTerminated:
+        msg = 'OS terminated session: ${event.message}';
+      case SessionErrorCode.invalidState:
+        msg = 'Invalid state: ${event.message}';
+    }
+    _addLog(msg, _LogType.error);
   }
 
   static double _sqrt(double v) {
@@ -236,6 +380,27 @@ class _SessionPageState extends State<SessionPage> {
                     value: _lastRmssd.toStringAsFixed(1),
                     unit: 'ms',
                     color: cs.secondary,
+                  ),
+                  const SizedBox(width: 8),
+                  _StatCard(
+                    label: 'Stability',
+                    value: _lastStability?.toStringAsFixed(2) ?? '--',
+                    unit: '',
+                    color: Colors.tealAccent,
+                  ),
+                ],
+              ),
+            ),
+
+          // ---- Fragmentation indicator ----
+          if (_lastFragmentation != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Row(
+                children: [
+                  Text(
+                    'Fragmentation: ${_lastFragmentation!.toStringAsFixed(2)}',
+                    style: TextStyle(fontSize: 11, color: cs.outline),
                   ),
                 ],
               ),

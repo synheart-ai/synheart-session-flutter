@@ -2,20 +2,13 @@ import Flutter
 
 /// Flutter plugin entry point for Synheart Session on iOS.
 ///
-/// Routing strategy for `startSession`:
-///   1. If the watch companion is reachable → relay the command to the watch.
-///      The watch runs its `SessionEngine` and streams events back via WCSession.
-///      If the send fails (watch killed, BT dropped) → fall back to step 2.
-///   2. Otherwise → run a local `SessionEngine` on the phone.
-///
-/// In both cases, events flow through the same `FlutterEventSink` so the Dart
-/// layer doesn't need to know which path was taken.
+/// After the refactor to Dart-side `LiveSessionEngine`, this plugin only
+/// handles the Apple Watch relay path. All local session compute is done
+/// in Dart. The watch relay is kept because WCSession requires a native host.
 public class SynheartSessionPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
 
-    private let engine = SessionEngine()
     private let watchRelay = WatchSessionRelay()
     private var eventSink: FlutterEventSink?
-    private var usingWatch = false
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let instance = SynheartSessionPlugin()
@@ -39,13 +32,13 @@ public class SynheartSessionPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
         switch call.method {
         case "startSession":  handleStartSession(call: call, result: result)
         case "stopSession":   handleStopSession(call: call, result: result)
-        case "getStatus":     handleGetStatus(result: result)
+        case "getStatus":     result(nil) // Local status handled in Dart
         case "getWatchStatus": handleGetWatchStatus(result: result)
         default:              result(FlutterMethodNotImplemented)
         }
     }
 
-    // MARK: - Start
+    // MARK: - Start (watch relay only)
 
     private func handleStartSession(call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let args = call.arguments as? [String: Any] else {
@@ -60,17 +53,9 @@ public class SynheartSessionPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
             }
 
             if watchRelay.isReachable {
-                usingWatch = true
-                watchRelay.startSession(config: config, callback: sink) { [weak self] in
-                    // Watch send failed — transparent fallback
-                    guard let self = self else { return }
-                    self.usingWatch = false
-                    try? self.engine.start(config: config, callback: sink)
-                }
-            } else {
-                usingWatch = false
-                try engine.start(config: config, callback: sink)
+                watchRelay.startSession(config: config, callback: sink) { /* onSendFailed — Dart handles locally */ }
             }
+            // If watch not reachable, just return — Dart LiveSessionEngine handles locally
             result(nil)
         } catch let error as SessionError {
             result(FlutterError(code: error.code.rawValue, message: error.description, details: nil))
@@ -88,27 +73,11 @@ public class SynheartSessionPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
             return
         }
 
-        if usingWatch {
-            watchRelay.stopSession(sessionId: sessionId)
-            usingWatch = false
-            result(nil)
-        } else {
-            do {
-                try engine.stop(sessionId: sessionId)
-                result(nil)
-            } catch let error as SessionError {
-                result(FlutterError(code: error.code.rawValue, message: error.description, details: nil))
-            } catch {
-                result(FlutterError(code: "invalid_state", message: error.localizedDescription, details: nil))
-            }
-        }
+        watchRelay.stopSession(sessionId: sessionId)
+        result(nil)
     }
 
-    // MARK: - Status
-
-    private func handleGetStatus(result: @escaping FlutterResult) {
-        result(engine.getStatus())
-    }
+    // MARK: - Watch status
 
     private func handleGetWatchStatus(result: @escaping FlutterResult) {
         result(watchRelay.status)

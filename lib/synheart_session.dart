@@ -1,8 +1,10 @@
+export 'src/live/live_session_engine.dart';
 export 'src/mock/mock_behavior_provider.dart';
 export 'src/session.dart';
 export 'src/session_error.dart';
 export 'src/types/behavior_provider.dart';
 export 'src/types/biosignal_sample.dart';
+export 'src/types/ble_hrm_provider.dart';
 export 'src/types/compute_profile.dart';
 export 'src/types/enums.dart';
 export 'src/types/session_config.dart';

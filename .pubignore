@@ -1,3 +1,71 @@
+# Files ignored during `dart pub publish`.
+#
+# This file exists to make publishing deterministic regardless of user/global
+# gitignore configuration.
+
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+/build/
+pubspec.lock
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Example app build artifacts
+example/.dart_tool/
+example/.flutter-plugins
+example/.flutter-plugins-dependencies
+example/.packages
+example/.pub/
+example/build/
+example/pubspec.lock
+example/android/.gradle/
+example/android/local.properties
+example/android/GeneratedPluginRegistrant.java
+example/android/.cxx/
+example/ios/**/DerivedData/
+example/ios/**/Pods/
+example/ios/**/.symlinks/
+example/ios/Flutter/ephemeral/
+example/ios/profile
+example/ios/xcuserdata
+example/ios/Runner/GeneratedPluginRegistrant.*
+
+# Coverage
+coverage/
+*.lcov
+
+# Archives
+*.zip
+
 # Version control
 .git/
 .gitignore

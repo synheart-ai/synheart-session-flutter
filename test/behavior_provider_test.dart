@@ -23,16 +23,15 @@ void main() {
       final provider = MockBehaviorProvider();
       final snapshot = provider.currentSnapshot();
 
-      expect(snapshot, isNotNull);
-      expect(snapshot!.typingCadence, 3.5);
-      expect(snapshot.interKeyLatency, 120.0);
+      expect(snapshot.typingCadence, 3.5);
+      expect(snapshot.interKeyLatency, 120);
       expect(snapshot.burstLength, 8);
       expect(snapshot.scrollVelocity, 120.5);
       expect(snapshot.scrollAcceleration, 15.2);
       expect(snapshot.scrollJitter, 3.1);
       expect(snapshot.tapRate, 2.3);
       expect(snapshot.appSwitchesPerMinute, 4);
-      expect(snapshot.foregroundDuration, 45.0);
+      expect(snapshot.foregroundDuration, 45);
       expect(snapshot.idleGapSeconds, 2.1);
       expect(snapshot.stabilityIndex, 0.82);
       expect(snapshot.fragmentationIndex, 0.15);
@@ -50,14 +49,14 @@ void main() {
     test('toJson produces snake_case keys', () {
       const snapshot = BehaviorSnapshot(
         typingCadence: 3.5,
-        interKeyLatency: 120.0,
+        interKeyLatency: 120,
         burstLength: 8,
         scrollVelocity: 120.5,
         scrollAcceleration: 15.2,
         scrollJitter: 3.1,
         tapRate: 2.3,
         appSwitchesPerMinute: 4,
-        foregroundDuration: 45.0,
+        foregroundDuration: 45,
         idleGapSeconds: 2.1,
         stabilityIndex: 0.82,
         fragmentationIndex: 0.15,
@@ -66,14 +65,14 @@ void main() {
 
       final json = snapshot.toJson();
       expect(json['typing_cadence'], 3.5);
-      expect(json['inter_key_latency'], 120.0);
+      expect(json['inter_key_latency'], 120);
       expect(json['burst_length'], 8);
       expect(json['scroll_velocity'], 120.5);
       expect(json['scroll_acceleration'], 15.2);
       expect(json['scroll_jitter'], 3.1);
       expect(json['tap_rate'], 2.3);
       expect(json['app_switches_per_minute'], 4);
-      expect(json['foreground_duration'], 45.0);
+      expect(json['foreground_duration'], 45);
       expect(json['idle_gap_seconds'], 2.1);
       expect(json['stability_index'], 0.82);
       expect(json['fragmentation_index'], 0.15);
@@ -97,7 +96,7 @@ void main() {
 
     test('fromJson roundtrip', () {
       const original = BehaviorSnapshot(
-        scrollVelocity: 100.0,
+        scrollVelocity: 100,
         stabilityIndex: 0.9,
         appSwitchesPerMinute: 3,
         timestamp: 5000,
@@ -107,7 +106,7 @@ void main() {
       // Add required fields that toJson omits when null
       json['typing_cadence'] = null;
       final decoded = BehaviorSnapshot.fromJson(json);
-      expect(decoded.scrollVelocity, 100.0);
+      expect(decoded.scrollVelocity, 100);
       expect(decoded.stabilityIndex, 0.9);
       expect(decoded.appSwitchesPerMinute, 3);
       expect(decoded.timestamp, 5000);
@@ -122,7 +121,7 @@ void main() {
         'seq': 1,
         'emitted_at_ms': 2000,
         'encoding': 'json_utf8',
-        'metrics': <String, dynamic>{'hr_mean_bpm': 72.0},
+        'metrics': <String, dynamic>{'hr_mean_bpm': 72},
         'behavior': <String, dynamic>{
           'stability_index': 0.82,
           'timestamp': 1708300000000,
@@ -142,7 +141,7 @@ void main() {
         'seq': 1,
         'emitted_at_ms': 2000,
         'encoding': 'json_utf8',
-        'metrics': <String, dynamic>{'hr_mean_bpm': 72.0},
+        'metrics': <String, dynamic>{'hr_mean_bpm': 72},
       });
 
       expect(event, isA<SessionFrame>());
@@ -155,7 +154,7 @@ void main() {
         sessionId: 'x',
         seq: 1,
         emittedAtMs: 1000,
-        metrics: {'hr_mean_bpm': 72.0},
+        metrics: {'hr_mean_bpm': 72},
         behavior: {'stability_index': 0.82},
       );
 
@@ -169,7 +168,7 @@ void main() {
         sessionId: 'x',
         seq: 1,
         emittedAtMs: 1000,
-        metrics: {'hr_mean_bpm': 72.0},
+        metrics: {'hr_mean_bpm': 72},
       );
 
       final json = frame.toJson();
@@ -184,7 +183,7 @@ void main() {
         'session_id': 'abc',
         'duration_actual_sec': 300,
         'encoding': 'json_utf8',
-        'metrics': <String, dynamic>{'hr_mean_bpm': 72.0},
+        'metrics': <String, dynamic>{'hr_mean_bpm': 72},
         'behavior': <String, dynamic>{
           'stability_index': 0.82,
           'timestamp': 1708300000000,
@@ -201,7 +200,7 @@ void main() {
       const summary = SessionSummary(
         sessionId: 'x',
         durationActualSec: 100,
-        metrics: {'hr_mean_bpm': 72.0},
+        metrics: {'hr_mean_bpm': 72},
       );
 
       final json = summary.toJson();

@@ -48,22 +48,25 @@ void main() {
       engine.dispose();
     });
 
-    test('emits SessionStarted then session frames then SessionSummary', () async {
-      final config = SessionConfig(
-        sessionId: 'test-1',
-        mode: SessionMode.focus,
-        durationSec: 2,
-        profile: const ComputeProfile(windowSec: 10, emitIntervalSec: 1),
-      );
+    test(
+      'emits SessionStarted then session frames then SessionSummary',
+      () async {
+        final config = SessionConfig(
+          sessionId: 'test-1',
+          mode: SessionMode.focus,
+          durationSec: 2,
+          profile: const ComputeProfile(windowSec: 10, emitIntervalSec: 1),
+        );
 
-      final events = await engine.startSession(config).toList();
+        final events = await engine.startSession(config).toList();
 
-      expect(events.first, isA<SessionStarted>());
-      expect(events.last, isA<SessionSummary>());
+        expect(events.first, isA<SessionStarted>());
+        expect(events.last, isA<SessionSummary>());
 
-      final frames = events.whereType<SessionFrame>().toList();
-      expect(frames, isNotEmpty);
-    });
+        final frames = events.whereType<SessionFrame>().toList();
+        expect(frames, isNotEmpty);
+      },
+    );
 
     test('SessionFrame has required session metrics keys', () async {
       final config = SessionConfig(

@@ -1,17 +1,35 @@
 import 'dart:async';
 
+import 'package:synheart_behavior/synheart_behavior.dart';
 import 'package:synheart_session/src/channel/session_channel.dart';
+import 'package:synheart_session/src/live/live_session_engine.dart';
 import 'package:synheart_session/src/mock/mock_session_engine.dart';
 import 'package:synheart_session/src/session_error.dart';
 import 'package:synheart_session/src/types/behavior_provider.dart';
+import 'package:synheart_session/src/types/ble_hrm_provider.dart';
 import 'package:synheart_session/src/types/session_config.dart';
 import 'package:synheart_session/src/types/session_event.dart';
 import 'package:synheart_session/src/types/session_status.dart';
 import 'package:synheart_session/src/types/watch_status.dart';
+import 'package:synheart_wear/synheart_wear.dart';
 
 class SynheartSession {
-  /// Production mode — uses platform channels to native iOS/Android.
-  SynheartSession() : _mockEngine = null, _channel = SessionChannel();
+  /// Live mode — consumes real data from wear/behavior SDKs.
+  ///
+  /// All parameters are optional for backward compatibility.
+  /// When no HR source is provided, falls back to the iOS watch relay
+  /// (via [SessionChannel]) if reachable, or emits zeroed metrics otherwise.
+  SynheartSession({
+    SynheartWear? wear,
+    BleHrmProvider? bleHrm,
+    SynheartBehavior? behavior,
+  }) : _mockEngine = null,
+       _liveEngine = LiveSessionEngine(
+         wear: wear,
+         bleHrm: bleHrm,
+         behavior: behavior,
+       ),
+       _channel = SessionChannel();
 
   /// Mock mode — simulates sessions locally for development.
   SynheartSession.mock({int? seed, BehaviorProvider? behaviorProvider})
@@ -19,9 +37,11 @@ class SynheartSession {
         seed: seed,
         behaviorProvider: behaviorProvider,
       ),
+      _liveEngine = null,
       _channel = null;
 
   final MockSessionEngine? _mockEngine;
+  final LiveSessionEngine? _liveEngine;
   final SessionChannel? _channel;
   final Map<String, StreamController<SessionEvent>> _controllers = {};
   StreamSubscription<SessionEvent>? _channelSubscription;
@@ -41,7 +61,7 @@ class SynheartSession {
     if (_mockEngine != null) {
       return _startMockSession(config);
     }
-    return _startChannelSession(config);
+    return _startLiveSession(config);
   }
 
   /// Stop a running session (triggers SessionSummary).
@@ -50,8 +70,8 @@ class SynheartSession {
 
     if (_mockEngine != null) {
       await _mockEngine.stopSession(sessionId);
-    } else {
-      await _channel!.stopSession(sessionId);
+    } else if (_liveEngine != null) {
+      await _liveEngine.stopSession(sessionId);
     }
   }
 
@@ -60,14 +80,22 @@ class SynheartSession {
     _checkDisposed();
 
     if (_mockEngine != null) {
-      // Return status for the first active session, or null
       for (final id in _controllers.keys) {
         final status = _mockEngine.getStatus(id);
         if (status != null) return status;
       }
       return null;
     }
-    return _channel!.getStatus();
+
+    if (_liveEngine != null) {
+      for (final id in _controllers.keys) {
+        final status = _liveEngine.getStatus(id);
+        if (status != null) return status;
+      }
+      return null;
+    }
+
+    return null;
   }
 
   /// Query Apple Watch connectivity status. Returns null in mock mode.
@@ -83,6 +111,7 @@ class SynheartSession {
     _disposed = true;
 
     _mockEngine?.dispose();
+    _liveEngine?.dispose();
     _channelSubscription?.cancel();
 
     for (final controller in _controllers.values) {
@@ -125,28 +154,46 @@ class SynheartSession {
     return controller.stream;
   }
 
-  Stream<SessionEvent> _startChannelSession(SessionConfig config) {
+  Stream<SessionEvent> _startLiveSession(SessionConfig config) {
+    final liveStream = _liveEngine!.startSession(config);
+
     final controller = StreamController<SessionEvent>.broadcast();
     _controllers[config.sessionId] = controller;
 
-    // Subscribe to channel events once (shared across sessions)
-    _channelSubscription ??= _channel!.events.listen(
+    // Also start the watch relay channel listener for iOS watch events
+    _channelSubscription ??= _channel?.events.listen(
       _routeChannelEvent,
       onError: (Object error) {
-        // Broadcast error to all active sessions
         for (final c in _controllers.values) {
           c.addError(error);
         }
       },
     );
 
-    // Fire the platform start command
-    _channel!.startSession(config).catchError((Object error) {
-      controller
-        ..addError(error)
-        ..close();
+    final sub = liveStream.listen(
+      (event) {
+        if (controller.isClosed) return;
+        controller.add(event);
+        if (event is SessionSummary || event is SessionError) {
+          controller.close();
+          _controllers.remove(config.sessionId);
+        }
+      },
+      onError: (Object error) {
+        if (!controller.isClosed) controller.addError(error);
+      },
+      onDone: () {
+        if (!controller.isClosed) {
+          controller.close();
+        }
+        _controllers.remove(config.sessionId);
+      },
+    );
+
+    controller.onCancel = () {
+      sub.cancel();
       _controllers.remove(config.sessionId);
-    });
+    };
 
     return controller.stream;
   }

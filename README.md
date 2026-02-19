@@ -1,26 +1,26 @@
-# synheart_session
+# Synheart Session
 
 [![pub package](https://img.shields.io/pub/v/synheart_session.svg)](https://pub.dev/packages/synheart_session)
 [![CI](https://github.com/synheart-ai/synheart-session-dart/actions/workflows/ci.yml/badge.svg)](https://github.com/synheart-ai/synheart-session-dart/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
-Flutter SDK for Synheart Session — real-time session capture with on-device HR metrics and behavioral signal fusion.
+Dart / Flutter SDK for Synheart Session — stream-based session API with typed events for HR metrics and behavioral signals.
 
 ## Features
 
-- Start and stop HR capture sessions on iOS (HealthKit) and Android (Health Services)
-- Stream real-time session frames via `EventChannel`
-- Optional behavioral signal fusion (typing, scrolling, taps, app switches, idle gaps) alongside HR metrics
+- Stream real-time HR data from wearables (`synheart_wear`) or any BLE HRM (via `BleHrmProvider`)
+- Fuse behavioral signals (`synheart_behavior`) alongside HR metrics in session frames
+- Dart-side `LiveSessionEngine` with real SDNN/RMSSD computation from RR intervals
+- Apple Watch relay via WCSession (iOS)
 - Built-in mock engine for local development and testing (no wearable required)
 - Type-safe session events: `SessionStarted`, `SessionFrame`, `SessionSummary`, `SessionError`
-- Pluggable `BehaviorProvider` with built-in `MockBehaviorProvider` for development
 - Configurable compute profile (window size, emit interval)
 
 ## Installation
 
 ```yaml
 dependencies:
-  synheart_session: ^0.2.0
+  synheart_session: ^0.1.0
 ```
 
 ```bash
@@ -29,16 +29,27 @@ flutter pub add synheart_session
 
 ## Quick Start
 
+### Live mode (real wearable data)
+
 ```dart
 import 'package:synheart_session/synheart_session.dart';
+import 'package:synheart_wear/synheart_wear.dart';
+import 'package:synheart_behavior/synheart_behavior.dart';
 
-// Production (uses native iOS/Android plugins)
-final session = SynheartSession();
+// Initialize wear + behavior SDKs
+final wear = SynheartWear(config: SynheartWearConfig.production());
+await wear.initialize();
+final behavior = await SynheartBehavior.initialize();
 
-// Development (mock engine, no wearable needed)
-final session = SynheartSession.mock();
+// Create session with real data sources
+final session = SynheartSession(wear: wear, behavior: behavior);
 
-// Start a session
+// Or with BLE HRM directly:
+// final session = SynheartSession(bleHrm: bleHrm, behavior: behavior);
+
+// Or no args (watch relay on iOS, timer-only otherwise):
+// final session = SynheartSession();
+
 final config = SessionConfig(
   mode: SessionMode.focus,
   durationSec: 300,
@@ -50,12 +61,18 @@ stream.listen((event) {
   switch (event) {
     case SessionStarted():
       print('Session started: ${event.sessionId}');
-    case HsiFrame():
-      print('HSI frame #${event.seq}: ${event.hsiJson}');
+    case SessionFrame():
+      print('HR: ${event.metrics['hr_mean_bpm']} bpm');
+      print('RMSSD: ${event.metrics['rmssd_ms']} ms');
+      if (event.behavior != null) {
+        print('Stability: ${event.behavior!['stability_index']}');
+      }
     case SessionSummary():
       print('Session complete: ${event.durationActualSec}s');
     case SessionError():
       print('Error: ${event.code} - ${event.message}');
+    default:
+      break;
   }
 });
 
@@ -66,12 +83,12 @@ await session.stopSession(config.sessionId);
 session.dispose();
 ```
 
-### With behavioral signals (mock mode)
+### Mock mode (development)
 
 ```dart
 import 'package:synheart_session/synheart_session.dart';
 
-// Use mock behavior provider for development
+// Mock engine, no wearable needed
 final session = SynheartSession.mock(
   behaviorProvider: MockBehaviorProvider(),
 );
@@ -86,43 +103,45 @@ stream.listen((event) {
       }
     case SessionSummary():
       print('Session complete');
-      if (event.behavior != null) {
-        print('Final stability: ${event.behavior!['stability_index']}');
-      }
     default:
       break;
   }
 });
 ```
 
-In production mode, behavioral data flows automatically from the native `SessionEngine` when a `BehaviorProvider` is configured on the native side — no Dart code changes needed.
-
 ## Architecture
 
 ```
-Flutter App
-  └── SynheartSession (Dart)
-        ├── MockSessionEngine (development — sinusoidal HR, optional behavior)
-        │     └── BehaviorProvider? (pull-based)
-        │           ├── MockBehaviorProvider (stable mid-range values)
-        │           └── custom BehaviorProvider
-        └── SessionChannel (production)
-              ├── MethodChannel: ai.synheart.session/methods
-              └── EventChannel:  ai.synheart.session/events
-                    ├── iOS: SynheartSessionPlugin (Swift)
-                    │         └── SessionEngine(provider, behaviorProvider?)
-                    └── Android: SynheartSessionPlugin (Kotlin)
-                                  └── SessionEngine(provider, behaviorProvider?)
-```
+SynheartSession (Dart)
+├── .mock(seed, behaviorProvider)
+│    └── MockSessionEngine (sinusoidal HR, optional behavior)
+│
+└── (default: wear?, bleHrm?, behavior?)
+     ├── LiveSessionEngine [Dart]
+     │    ├── BleHrmProvider.onHeartRate → _HrRingBuffer
+     │    │   OR SynheartWear.streamHR() → mapped → _HrRingBuffer
+     │    ├── SynheartBehavior.getCurrentStats() [async at each tick]
+     │    ├── _computeMetrics() [SDNN, RMSSD from real RR intervals]
+     │    └── Timer.periodic → SessionFrame / SessionSummary
+     │
+     └── SessionChannel (iOS watch relay only)
+          ├── MethodChannel: ai.synheart.session/methods
+          └── EventChannel: ai.synheart.session/events
 
-The native `SessionEngine` on both platforms accepts a pluggable `BiosignalProvider`. When the native plugin is initialized with a connected BLE HRM (via synheart-wear), real heart rate data flows through the platform channel automatically. No Dart code changes are needed — the same `SessionEvent` stream emits real data instead of mock data.
+iOS Native (simplified):
+  SynheartSessionPlugin.swift → watch relay + getWatchStatus only
+  WatchSessionRelay.swift → WCSession bridge
+
+Android Native (minimal stub):
+  SynheartSessionPlugin.kt → plugin registration only
+```
 
 ### Session Lifecycle
 
 ```
 IDLE → startSession() → SessionStarted
-                          → HsiFrame (every emitIntervalSec)
-                          → HsiFrame ...
+                          → SessionFrame (every emitIntervalSec)
+                          → SessionFrame ...
        stopSession() ──→ SessionSummary
                           → Stream closes
 ```
@@ -131,11 +150,17 @@ IDLE → startSession() → SessionStarted
 
 ### `SynheartSession`
 
+| Constructor | Description |
+|-------------|-------------|
+| `SynheartSession({wear?, bleHrm?, behavior?})` | Live mode — real data from wear/behavior SDKs |
+| `SynheartSession.mock({seed?, behaviorProvider?})` | Mock mode — simulated data |
+
 | Method | Description |
 |--------|-------------|
 | `startSession(config)` | Start a session, returns `Stream<SessionEvent>` |
 | `stopSession(sessionId)` | Stop a running session |
 | `getStatus()` | Query current session status |
+| `getWatchStatus()` | Query Apple Watch connectivity (iOS only) |
 | `dispose()` | Clean up resources |
 
 ### `SessionConfig`
@@ -146,6 +171,7 @@ IDLE → startSession() → SessionStarted
 | `mode` | `SessionMode` | required | `.focus` or `.breathing` |
 | `durationSec` | `int` | required | Maximum session duration |
 | `profile` | `ComputeProfile` | 60s/5s | Window and emit configuration |
+| `includeRawSamples` | `bool` | `false` | Emit `BiosignalFrame` events with raw samples |
 | `windowLabel` | `String?` | null | Optional label for the session window |
 
 ### `SessionEvent` Types
@@ -154,55 +180,19 @@ IDLE → startSession() → SessionStarted
 |------|------------|
 | `SessionStarted` | `sessionId`, `startedAtMs` |
 | `SessionFrame` | `sessionId`, `seq`, `emittedAtMs`, `metrics`, `behavior?` |
+| `BiosignalFrame` | `sessionId`, `seq`, `emittedAtMs`, `samples` |
 | `SessionSummary` | `sessionId`, `durationActualSec`, `metrics`, `behavior?` |
 | `SessionError` | `sessionId`, `code`, `message` |
-
-### `BehaviorProvider`
-
-| Method/Property | Description |
-|----------------|-------------|
-| `isAvailable` | Whether the provider is ready |
-| `name` | Provider identifier (e.g. `"mock"`) |
-| `currentSnapshot()` | Returns current `BehaviorSnapshot?` |
-
-### `BehaviorSnapshot` Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `typingCadence` | `double?` | Keys per second |
-| `interKeyLatency` | `double?` | Milliseconds between keystrokes |
-| `burstLength` | `int?` | Keys in current burst |
-| `scrollVelocity` | `double?` | Pixels per second |
-| `scrollAcceleration` | `double?` | Pixels per second squared |
-| `scrollJitter` | `double?` | Variance in scroll speed |
-| `tapRate` | `double?` | Taps per second |
-| `appSwitchesPerMinute` | `int` | App switches per minute |
-| `foregroundDuration` | `double?` | Seconds in foreground |
-| `idleGapSeconds` | `double?` | Seconds since last interaction |
-| `stabilityIndex` | `double?` | 0.0 to 1.0 |
-| `fragmentationIndex` | `double?` | 0.0 to 1.0 |
-| `timestamp` | `int` | Capture timestamp (ms since epoch) |
 
 ## Platform Setup
 
 ### iOS
 
-Requires iOS 13.0+. No additional setup needed for mock mode. For real BLE HR streaming, connect a heart rate monitor via synheart-wear before starting a session. HealthKit workout session integration (future phase) will require:
-
-```xml
-<!-- ios/Runner/Info.plist -->
-<key>NSHealthShareUsageDescription</key>
-<string>This app reads heart rate data during sessions.</string>
-```
+Requires iOS 13.0+. For BLE HR streaming, connect a heart rate monitor via `synheart_wear` before starting a session.
 
 ### Android
 
-Requires API 21+. No additional setup needed for mock mode. For real BLE HR streaming, connect a heart rate monitor via synheart-wear before starting a session. Health Services ExerciseClient integration (future phase) will require:
-
-```xml
-<!-- android/app/src/main/AndroidManifest.xml -->
-<uses-permission android:name="android.permission.BODY_SENSORS" />
-```
+Requires API 21+. All session compute runs in Dart. The native plugin is a registration stub.
 
 ## Development
 
@@ -222,10 +212,10 @@ dart pub publish --dry-run
 
 ## Related Packages
 
-| Package | Platform | Description |
-|---------|----------|-------------|
-| [synheart-session-swift](https://github.com/synheart-ai/synheart-session-swift) | iOS/watchOS | Standalone Swift SDK |
-| [synheart-session-kotlin](https://github.com/synheart-ai/synheart-session-kotlin) | Android/Wear OS | Standalone Kotlin SDK |
+| Package | Description |
+|---------|-------------|
+| `synheart_wear` | Unified wearable SDK — Apple Watch, Fitbit, Garmin, BLE HRM |
+| `synheart_behavior` | Digital behavioral signals — typing, scrolling, taps, app switches |
 
 ## Links
 
