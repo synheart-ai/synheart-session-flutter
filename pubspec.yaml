@@ -1,5 +1,5 @@
 name: synheart_session
-description: Flutter SDK for Synheart Session — real-time wearable HR capture with on-device HSI computation.
+description: Flutter SDK for Synheart Session — real-time session capture with on-device HR metrics and behavioral signal fusion.
 version: 0.1.0
 homepage: https://github.com/synheart-ai/synheart-session-dart
 repository: https://github.com/synheart-ai/synheart-session-dart

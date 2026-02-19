@@ -4,21 +4,23 @@
 [![CI](https://github.com/synheart-ai/synheart-session-dart/actions/workflows/ci.yml/badge.svg)](https://github.com/synheart-ai/synheart-session-dart/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
-Flutter SDK for Synheart Session — real-time wearable HR capture with on-device HSI computation.
+Flutter SDK for Synheart Session — real-time session capture with on-device HR metrics and behavioral signal fusion.
 
 ## Features
 
 - Start and stop HR capture sessions on iOS (HealthKit) and Android (Health Services)
-- Stream real-time HSI 1.0 frames via `EventChannel`
+- Stream real-time session frames via `EventChannel`
+- Optional behavioral signal fusion (typing, scrolling, taps, app switches, idle gaps) alongside HR metrics
 - Built-in mock engine for local development and testing (no wearable required)
-- Type-safe session events: `SessionStarted`, `HsiFrame`, `SessionSummary`, `SessionError`
+- Type-safe session events: `SessionStarted`, `SessionFrame`, `SessionSummary`, `SessionError`
+- Pluggable `BehaviorProvider` with built-in `MockBehaviorProvider` for development
 - Configurable compute profile (window size, emit interval)
 
 ## Installation
 
 ```yaml
 dependencies:
-  synheart_session: ^0.1.0
+  synheart_session: ^0.2.0
 ```
 
 ```bash
@@ -64,18 +66,56 @@ await session.stopSession(config.sessionId);
 session.dispose();
 ```
 
+### With behavioral signals (mock mode)
+
+```dart
+import 'package:synheart_session/synheart_session.dart';
+
+// Use mock behavior provider for development
+final session = SynheartSession.mock(
+  behaviorProvider: MockBehaviorProvider(),
+);
+
+final stream = session.startSession(config);
+stream.listen((event) {
+  switch (event) {
+    case SessionFrame():
+      print('HR: ${event.metrics['hr_mean_bpm']}');
+      if (event.behavior != null) {
+        print('Stability: ${event.behavior!['stability_index']}');
+      }
+    case SessionSummary():
+      print('Session complete');
+      if (event.behavior != null) {
+        print('Final stability: ${event.behavior!['stability_index']}');
+      }
+    default:
+      break;
+  }
+});
+```
+
+In production mode, behavioral data flows automatically from the native `SessionEngine` when a `BehaviorProvider` is configured on the native side — no Dart code changes needed.
+
 ## Architecture
 
 ```
 Flutter App
   └── SynheartSession (Dart)
-        ├── MockSessionEngine (development)
+        ├── MockSessionEngine (development — sinusoidal HR, optional behavior)
+        │     └── BehaviorProvider? (pull-based)
+        │           ├── MockBehaviorProvider (stable mid-range values)
+        │           └── custom BehaviorProvider
         └── SessionChannel (production)
               ├── MethodChannel: ai.synheart.session/methods
               └── EventChannel:  ai.synheart.session/events
                     ├── iOS: SynheartSessionPlugin (Swift)
+                    │         └── SessionEngine(provider, behaviorProvider?)
                     └── Android: SynheartSessionPlugin (Kotlin)
+                                  └── SessionEngine(provider, behaviorProvider?)
 ```
+
+The native `SessionEngine` on both platforms accepts a pluggable `BiosignalProvider`. When the native plugin is initialized with a connected BLE HRM (via synheart-wear), real heart rate data flows through the platform channel automatically. No Dart code changes are needed — the same `SessionEvent` stream emits real data instead of mock data.
 
 ### Session Lifecycle
 
@@ -113,15 +153,41 @@ IDLE → startSession() → SessionStarted
 | Type | Key Fields |
 |------|------------|
 | `SessionStarted` | `sessionId`, `startedAtMs` |
-| `HsiFrame` | `sessionId`, `seq`, `emittedAtMs`, `hsiJson` |
-| `SessionSummary` | `sessionId`, `durationActualSec`, `hsiJson` |
+| `SessionFrame` | `sessionId`, `seq`, `emittedAtMs`, `metrics`, `behavior?` |
+| `SessionSummary` | `sessionId`, `durationActualSec`, `metrics`, `behavior?` |
 | `SessionError` | `sessionId`, `code`, `message` |
+
+### `BehaviorProvider`
+
+| Method/Property | Description |
+|----------------|-------------|
+| `isAvailable` | Whether the provider is ready |
+| `name` | Provider identifier (e.g. `"mock"`) |
+| `currentSnapshot()` | Returns current `BehaviorSnapshot?` |
+
+### `BehaviorSnapshot` Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `typingCadence` | `double?` | Keys per second |
+| `interKeyLatency` | `double?` | Milliseconds between keystrokes |
+| `burstLength` | `int?` | Keys in current burst |
+| `scrollVelocity` | `double?` | Pixels per second |
+| `scrollAcceleration` | `double?` | Pixels per second squared |
+| `scrollJitter` | `double?` | Variance in scroll speed |
+| `tapRate` | `double?` | Taps per second |
+| `appSwitchesPerMinute` | `int` | App switches per minute |
+| `foregroundDuration` | `double?` | Seconds in foreground |
+| `idleGapSeconds` | `double?` | Seconds since last interaction |
+| `stabilityIndex` | `double?` | 0.0 to 1.0 |
+| `fragmentationIndex` | `double?` | 0.0 to 1.0 |
+| `timestamp` | `int` | Capture timestamp (ms since epoch) |
 
 ## Platform Setup
 
 ### iOS
 
-Requires iOS 13.0+. No additional setup needed for mock mode. HealthKit integration (future phase) will require:
+Requires iOS 13.0+. No additional setup needed for mock mode. For real BLE HR streaming, connect a heart rate monitor via synheart-wear before starting a session. HealthKit workout session integration (future phase) will require:
 
 ```xml
 <!-- ios/Runner/Info.plist -->
@@ -131,7 +197,7 @@ Requires iOS 13.0+. No additional setup needed for mock mode. HealthKit integrat
 
 ### Android
 
-Requires API 21+. No additional setup needed for mock mode. Health Services integration (future phase) will require:
+Requires API 21+. No additional setup needed for mock mode. For real BLE HR streaming, connect a heart rate monitor via synheart-wear before starting a session. Health Services ExerciseClient integration (future phase) will require:
 
 ```xml
 <!-- android/app/src/main/AndroidManifest.xml -->

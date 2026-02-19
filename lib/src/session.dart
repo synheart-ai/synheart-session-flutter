@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:synheart_session/src/channel/session_channel.dart';
 import 'package:synheart_session/src/mock/mock_session_engine.dart';
 import 'package:synheart_session/src/session_error.dart';
+import 'package:synheart_session/src/types/behavior_provider.dart';
 import 'package:synheart_session/src/types/session_config.dart';
 import 'package:synheart_session/src/types/session_event.dart';
 import 'package:synheart_session/src/types/session_status.dart';
@@ -13,8 +14,11 @@ class SynheartSession {
   SynheartSession() : _mockEngine = null, _channel = SessionChannel();
 
   /// Mock mode — simulates sessions locally for development.
-  SynheartSession.mock({int? seed})
-    : _mockEngine = MockSessionEngine(seed: seed),
+  SynheartSession.mock({int? seed, BehaviorProvider? behaviorProvider})
+    : _mockEngine = MockSessionEngine(
+        seed: seed,
+        behaviorProvider: behaviorProvider,
+      ),
       _channel = null;
 
   final MockSessionEngine? _mockEngine;

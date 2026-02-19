@@ -64,6 +64,7 @@ class SessionFrame extends SessionEvent {
     required this.seq,
     required this.emittedAtMs,
     required this.metrics,
+    this.behavior,
     this.encoding = PayloadEncoding.jsonUtf8,
   });
 
@@ -76,6 +77,7 @@ class SessionFrame extends SessionEvent {
           ? PayloadEncoding.fromString(json['encoding'] as String)
           : PayloadEncoding.jsonUtf8,
       metrics: json['metrics'] as Map<String, dynamic>,
+      behavior: json['behavior'] as Map<String, dynamic>?,
     );
   }
 
@@ -84,15 +86,22 @@ class SessionFrame extends SessionEvent {
   final PayloadEncoding encoding;
   final Map<String, dynamic> metrics;
 
+  /// Behavioral signal snapshot, present when a [BehaviorProvider] is configured.
+  final Map<String, dynamic>? behavior;
+
   @override
-  Map<String, dynamic> toJson() => {
-    'type': 'session_frame',
-    'session_id': sessionId,
-    'seq': seq,
-    'emitted_at_ms': emittedAtMs,
-    'encoding': encoding.value,
-    'metrics': metrics,
-  };
+  Map<String, dynamic> toJson() {
+    final json = <String, dynamic>{
+      'type': 'session_frame',
+      'session_id': sessionId,
+      'seq': seq,
+      'emitted_at_ms': emittedAtMs,
+      'encoding': encoding.value,
+      'metrics': metrics,
+    };
+    if (behavior != null) json['behavior'] = behavior;
+    return json;
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -118,6 +127,7 @@ class SessionSummary extends SessionEvent {
     required super.sessionId,
     required this.durationActualSec,
     required this.metrics,
+    this.behavior,
     this.encoding = PayloadEncoding.jsonUtf8,
   });
 
@@ -129,6 +139,7 @@ class SessionSummary extends SessionEvent {
           ? PayloadEncoding.fromString(json['encoding'] as String)
           : PayloadEncoding.jsonUtf8,
       metrics: json['metrics'] as Map<String, dynamic>,
+      behavior: json['behavior'] as Map<String, dynamic>?,
     );
   }
 
@@ -136,14 +147,21 @@ class SessionSummary extends SessionEvent {
   final PayloadEncoding encoding;
   final Map<String, dynamic> metrics;
 
+  /// Behavioral signal snapshot, present when a [BehaviorProvider] is configured.
+  final Map<String, dynamic>? behavior;
+
   @override
-  Map<String, dynamic> toJson() => {
-    'type': 'session_summary',
-    'session_id': sessionId,
-    'duration_actual_sec': durationActualSec,
-    'encoding': encoding.value,
-    'metrics': metrics,
-  };
+  Map<String, dynamic> toJson() {
+    final json = <String, dynamic>{
+      'type': 'session_summary',
+      'session_id': sessionId,
+      'duration_actual_sec': durationActualSec,
+      'encoding': encoding.value,
+      'metrics': metrics,
+    };
+    if (behavior != null) json['behavior'] = behavior;
+    return json;
+  }
 
   @override
   bool operator ==(Object other) =>

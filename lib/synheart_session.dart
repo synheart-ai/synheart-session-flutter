@@ -1,5 +1,7 @@
+export 'src/mock/mock_behavior_provider.dart';
 export 'src/session.dart';
 export 'src/session_error.dart';
+export 'src/types/behavior_provider.dart';
 export 'src/types/biosignal_sample.dart';
 export 'src/types/compute_profile.dart';
 export 'src/types/enums.dart';

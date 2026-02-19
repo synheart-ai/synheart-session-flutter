@@ -2,15 +2,18 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:synheart_session/src/mock/mock_hr_generator.dart';
+import 'package:synheart_session/src/types/behavior_provider.dart';
 import 'package:synheart_session/src/types/biosignal_sample.dart';
 import 'package:synheart_session/src/types/session_config.dart';
 import 'package:synheart_session/src/types/session_event.dart';
 import 'package:synheart_session/src/types/session_status.dart';
 
 class MockSessionEngine {
-  MockSessionEngine({int? seed}) : _hrGenerator = MockHrGenerator(seed: seed);
+  MockSessionEngine({int? seed, this.behaviorProvider})
+    : _hrGenerator = MockHrGenerator(seed: seed);
 
   final MockHrGenerator _hrGenerator;
+  final BehaviorProvider? behaviorProvider;
   final Map<String, _RunningSession> _sessions = {};
 
   Stream<SessionEvent> startSession(SessionConfig config) {
@@ -56,6 +59,7 @@ class MockSessionEngine {
             seq: session.seq,
             emittedAtMs: now,
             metrics: _buildMockMetrics(config, session),
+            behavior: _pullBehavior(),
           ),
         );
       })
@@ -141,6 +145,7 @@ class MockSessionEngine {
           sessionId: sessionId,
           durationActualSec: durationActual,
           metrics: _buildMockMetrics(session.config, session),
+          behavior: _pullBehavior(),
         ),
       )
       ..close();
@@ -164,6 +169,12 @@ class MockSessionEngine {
     y: (_accelRng.nextDouble() - 0.5) * 0.1,
     z: 0.95 + _accelRng.nextDouble() * 0.1,
   );
+
+  Map<String, dynamic>? _pullBehavior() {
+    final bp = behaviorProvider;
+    if (bp == null || !bp.isAvailable) return null;
+    return bp.currentSnapshot()?.toJson();
+  }
 
   Map<String, dynamic> _buildMockMetrics(
     SessionConfig config,
