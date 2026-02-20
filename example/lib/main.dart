@@ -265,10 +265,7 @@ class _SessionPageState extends State<SessionPage> {
     final scrollVelocity = (behavior?['scroll_velocity'] as num?)?.toDouble();
     final idleGap = (behavior?['idle_gap_seconds'] as num?)?.toDouble();
 
-    _addLog(
-      'Session complete: ${event.durationActualSec}s',
-      _LogType.success,
-    );
+    _addLog('Session complete: ${event.durationActualSec}s', _LogType.success);
 
     if (summaryHr != null) {
       _addLog(

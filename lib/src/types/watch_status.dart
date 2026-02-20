@@ -1,4 +1,4 @@
-/// Immutable snapshot of Apple Watch connectivity status.
+/// Immutable snapshot of watch connectivity status (Apple Watch / Wear OS).
 class WatchStatus {
   const WatchStatus({
     required this.supported,

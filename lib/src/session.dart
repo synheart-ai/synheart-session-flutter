@@ -1,32 +1,29 @@
 import 'dart:async';
 
-import 'package:synheart_behavior/synheart_behavior.dart';
 import 'package:synheart_session/src/channel/session_channel.dart';
 import 'package:synheart_session/src/live/live_session_engine.dart';
 import 'package:synheart_session/src/mock/mock_session_engine.dart';
 import 'package:synheart_session/src/session_error.dart';
 import 'package:synheart_session/src/types/behavior_provider.dart';
+import 'package:synheart_session/src/types/biosignal_provider.dart';
 import 'package:synheart_session/src/types/session_config.dart';
 import 'package:synheart_session/src/types/session_event.dart';
 import 'package:synheart_session/src/types/session_status.dart';
 import 'package:synheart_session/src/types/watch_status.dart';
-import 'package:synheart_wear/synheart_wear.dart';
 
 class SynheartSession {
-  /// Live mode — consumes real data from wear/behavior SDKs.
+  /// Live mode — consumes real data from provider abstractions.
   ///
-  /// All parameters are optional for backward compatibility.
-  /// When no HR source is provided, falls back to the iOS watch relay
-  /// (via [SessionChannel]) if reachable, or emits zeroed metrics otherwise.
+  /// All parameters are optional. When no [biosignalProvider] is supplied,
+  /// falls back to the iOS watch relay (via [SessionChannel]) if reachable,
+  /// or emits zeroed metrics otherwise.
   SynheartSession({
-    SynheartWear? wear,
-    BleHrmProvider? bleHrm,
-    SynheartBehavior? behavior,
+    BiosignalProvider? biosignalProvider,
+    BehaviorProvider? behaviorProvider,
   }) : _mockEngine = null,
        _liveEngine = LiveSessionEngine(
-         wear: wear,
-         bleHrm: bleHrm,
-         behavior: behavior,
+         biosignalProvider: biosignalProvider,
+         behaviorProvider: behaviorProvider,
        ),
        _channel = SessionChannel();
 
@@ -97,7 +94,8 @@ class SynheartSession {
     return null;
   }
 
-  /// Query Apple Watch connectivity status. Returns null in mock mode.
+  /// Query watch connectivity status (iOS + Android).
+  /// Returns null in mock mode.
   Future<WatchStatus?> getWatchStatus() async {
     _checkDisposed();
     if (_channel == null) return null;
@@ -159,7 +157,7 @@ class SynheartSession {
     final controller = StreamController<SessionEvent>.broadcast();
     _controllers[config.sessionId] = controller;
 
-    // Also start the watch relay channel listener for iOS watch events
+    // Also start the watch relay channel listener for watch events
     _channelSubscription ??= _channel?.events.listen(
       _routeChannelEvent,
       onError: (Object error) {

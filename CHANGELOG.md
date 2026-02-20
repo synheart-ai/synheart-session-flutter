@@ -9,9 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking**: `SynheartSession()` constructor now takes `({BiosignalProvider? biosignalProvider, BehaviorProvider? behaviorProvider})` instead of `({SynheartWear? wear, BleHrmProvider? bleHrm, SynheartBehavior? behavior})`. Consumers that used the live constructor must wrap their wear/behavior instances in the new provider abstractions.
+- **Breaking**: `LiveSessionEngine` constructor follows the same signature change.
+- Removed `synheart_wear` and `synheart_behavior` as hard dependencies — they are now optional, wired in by the consumer via `BiosignalProvider` / `BehaviorProvider` adapters.
+- Removed re-exports of `BleHrmDevice`, `BleHrmError`, `BleHrmErrorCode`, `BleHrmProvider`, `HeartRateSample` from the barrel file.
+
+
 - **Breaking**: Removed `PayloadEncoding` enum — structured message types replace the encoding field on `SessionFrame` and `SessionSummary`, aligning with the updated `session.proto` spec.
 
 ### Added
+
+- `BiosignalProvider` abstract class — stream-based abstraction for any biosignal source.
+- `MockBiosignalProvider` — wraps `MockHrGenerator` behind the `BiosignalProvider` interface (sinusoidal BPM at 1 Hz).
+
 
 - Privacy & Security section in README.
 - SDK Usage section in README with error handling and mock provider patterns.

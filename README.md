@@ -8,10 +8,10 @@ Dart / Flutter SDK for Synheart Session — stream-based session API with typed 
 
 ## Features
 
-- Stream real-time biosignal data from wearables or HR BLE HRMs via (`synheart_wear`) 
-- Fuse behavioral signals (`synheart_behavior`) alongside Biosignal metrics in session frames
+- Pluggable BiosignalProvider interface for any HR source (BLE HRM, HealthKit, mock)
+- Optional BehaviorProvider interface for behavioral signal fusion (typing, scrolling, taps)
 - Dart-side `LiveSessionEngine` with real SDNN/RMSSD computation from RR intervals
-- Apple Watch relay via WCSession (iOS)
+- Watch relay — Apple Watch (WCSession) and Wear OS (Wearable Data Layer)
 - Built-in mock engine for local development and testing (no wearable required)
 - Type-safe session events: `SessionStarted`, `SessionFrame`, `SessionSummary`, `SessionError`
 - Configurable compute profile (window size, emit interval)
@@ -33,21 +33,14 @@ flutter pub add synheart_session
 
 ```dart
 import 'package:synheart_session/synheart_session.dart';
-import 'package:synheart_wear/synheart_wear.dart';
-import 'package:synheart_behavior/synheart_behavior.dart';
 
-// Initialize wear + behavior SDKs
-final wear = SynheartWear(config: SynheartWearConfig.production());
-await wear.initialize();
-final behavior = await SynheartBehavior.initialize();
+// Wire in your own BiosignalProvider / BehaviorProvider adapters.
+final session = SynheartSession(
+  biosignalProvider: myBiosignalProvider,
+  behaviorProvider: myBehaviorProvider,
+);
 
-// Create session with real data sources
-final session = SynheartSession(wear: wear, behavior: behavior);
-
-// Or with BLE HRM directly:
-// final session = SynheartSession(bleHrm: bleHrm, behavior: behavior);
-
-// Or no args (watch relay on iOS, timer-only otherwise):
+// Or no args (watch relay on iOS/Android, timer-only otherwise):
 // final session = SynheartSession();
 
 final config = SessionConfig(
@@ -149,36 +142,6 @@ final session = SynheartSession.mock(
 // Ideal for unit tests, integration tests, and UI development
 ```
 
-### Integration with synheart-wear
-
-```dart
-import 'package:synheart_wear/synheart_wear.dart';
-
-// BLE HRM streaming
-final bleHrm = BleHrmProvider();
-final devices = await bleHrm.scan(timeoutMs: 10000);
-await bleHrm.connect(deviceId: devices.first.deviceId);
-final session = SynheartSession(bleHrm: bleHrm);
-
-// Or via SynheartWear (Apple Watch relay, Health Connect, etc.)
-final wear = SynheartWear(config: SynheartWearConfig.production());
-await wear.initialize();
-final session2 = SynheartSession(wear: wear);
-```
-
-### Integration with synheart-behavior
-
-```dart
-import 'package:synheart_behavior/synheart_behavior.dart';
-
-final behavior = await SynheartBehavior.initialize();
-final session = SynheartSession(wear: wear, behavior: behavior);
-
-// session_frame events include a "behavior" key with:
-// typing_cadence, scroll_velocity, tap_rate, app_switches_per_minute,
-// idle_gap_seconds, stability_index, fragmentation_index, etc.
-```
-
 ## Architecture
 
 ```
@@ -186,24 +149,24 @@ SynheartSession (Dart)
 ├── .mock(seed, behaviorProvider)
 │    └── MockSessionEngine (sinusoidal HR, optional behavior)
 │
-└── (default: wear?, bleHrm?, behavior?)
+└── (default: biosignalProvider?, behaviorProvider?)
      ├── LiveSessionEngine [Dart]
-     │    ├── BleHrmProvider.onHeartRate → _HrRingBuffer
-     │    │   OR SynheartWear.streamHR() → mapped → _HrRingBuffer
-     │    ├── SynheartBehavior.getCurrentStats() [async at each tick]
+     │    ├── BiosignalProvider.startStreaming() → _HrRingBuffer
+     │    ├── BehaviorProvider.currentSnapshot() [sync at each tick]
      │    ├── _computeMetrics() [SDNN, RMSSD from real RR intervals]
      │    └── Timer.periodic → SessionFrame / SessionSummary
      │
-     └── SessionChannel (iOS watch relay only)
+     └── SessionChannel (watch relay — iOS + Android)
           ├── MethodChannel: ai.synheart.session/methods
           └── EventChannel: ai.synheart.session/events
 
-iOS Native (simplified):
-  SynheartSessionPlugin.swift → watch relay + getWatchStatus only
-  WatchSessionRelay.swift → WCSession bridge
+iOS Native:
+  SynheartSessionPlugin.swift → watch relay + getWatchStatus
+  WatchSessionRelay.swift → WCSession bridge (Apple Watch)
 
-Android Native (minimal stub):
-  SynheartSessionPlugin.kt → plugin registration only
+Android Native:
+  SynheartSessionPlugin.kt → watch relay + getWatchStatus
+  WatchSessionRelay.kt → Wearable Data Layer bridge (Wear OS)
 ```
 
 ### Session Lifecycle
@@ -222,7 +185,7 @@ IDLE → startSession() → SessionStarted
 
 | Constructor | Description |
 |-------------|-------------|
-| `SynheartSession({wear?, bleHrm?, behavior?})` | Live mode — real data from wear/behavior SDKs |
+| `SynheartSession({biosignalProvider?, behaviorProvider?})` | Live mode — real data via provider abstractions |
 | `SynheartSession.mock({seed?, behaviorProvider?})` | Mock mode — simulated data |
 
 | Method | Description |
@@ -230,7 +193,7 @@ IDLE → startSession() → SessionStarted
 | `startSession(config)` | Start a session, returns `Stream<SessionEvent>` |
 | `stopSession(sessionId)` | Stop a running session |
 | `getStatus()` | Query current session status |
-| `getWatchStatus()` | Query Apple Watch connectivity (iOS only) |
+| `getWatchStatus()` | Query watch connectivity (iOS + Android) |
 | `dispose()` | Clean up resources |
 
 ### `SessionConfig`
@@ -267,11 +230,11 @@ IDLE → startSession() → SessionStarted
 
 ### iOS
 
-Requires iOS 13.0+. For BLE HR streaming, connect a heart rate monitor via `synheart_wear` before starting a session.
+Requires iOS 13.0+. For BLE HR streaming, connect a heart rate monitor before starting a session.
 
 ### Android
 
-Requires API 21+. All session compute runs in Dart. The native plugin is a registration stub.
+Requires API 21+. All session compute runs in Dart. The native plugin bridges to a Wear OS companion watch app via the Wearable Data Layer (`MessageClient`). Requires Google Play Services on the phone.
 
 ## Testing
 

@@ -1,30 +1,26 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:synheart_behavior/synheart_behavior.dart';
+import 'package:synheart_session/src/types/behavior_provider.dart';
+import 'package:synheart_session/src/types/biosignal_provider.dart';
 import 'package:synheart_session/src/types/session_config.dart';
 import 'package:synheart_session/src/types/session_event.dart';
 import 'package:synheart_session/src/types/session_status.dart';
-import 'package:synheart_wear/synheart_wear.dart';
 
-/// Dart-side session engine that consumes real HR data from
-/// [SynheartWear] or [BleHrmProvider] and behavioral signals from
-/// [SynheartBehavior].
+/// Dart-side session engine that consumes real HR data from a
+/// [BiosignalProvider] and behavioral signals from a [BehaviorProvider].
 ///
 /// Follows the same lifecycle as `MockSessionEngine`:
 ///   startSession → SessionStarted → SessionFrame* → SessionSummary
 class LiveSessionEngine {
   LiveSessionEngine({
-    SynheartWear? wear,
-    BleHrmProvider? bleHrm,
-    SynheartBehavior? behavior,
-  }) : _wear = wear,
-       _bleHrm = bleHrm,
-       _behavior = behavior;
+    BiosignalProvider? biosignalProvider,
+    BehaviorProvider? behaviorProvider,
+  }) : _biosignalProvider = biosignalProvider,
+       _behaviorProvider = behaviorProvider;
 
-  final SynheartWear? _wear;
-  final BleHrmProvider? _bleHrm;
-  final SynheartBehavior? _behavior;
+  final BiosignalProvider? _biosignalProvider;
+  final BehaviorProvider? _behaviorProvider;
   final Map<String, _RunningSession> _sessions = {};
 
   Stream<SessionEvent> startSession(SessionConfig config) {
@@ -97,51 +93,40 @@ class LiveSessionEngine {
     for (final id in _sessions.keys.toList()) {
       _cancelSession(id);
     }
+    _biosignalProvider?.stopStreaming();
   }
 
   // -- Private --
 
   void _subscribeHr(_RunningSession session) {
-    if (_bleHrm != null) {
-      session.hrSubscription = _bleHrm.onHeartRate.listen(
-        (sample) => session.buffer.add(
-          _HrSample(
-            timestampMs: sample.tsMs,
-            bpm: sample.bpm,
-            rrIntervalsMs: sample.rrIntervalsMs,
-          ),
+    final provider = _biosignalProvider;
+    if (provider == null || !provider.isAvailable) return;
+
+    session.hrSubscription = provider.startStreaming().listen(
+      (sample) => session.buffer.add(
+        _HrSample(
+          timestampMs: sample.timestampMs,
+          bpm: sample.bpm,
+          rrIntervalsMs: sample.rrIntervalMs != null
+              ? [sample.rrIntervalMs!]
+              : const [],
         ),
-      );
-    } else if (_wear != null) {
-      session.hrSubscription = _wear.streamHR().listen((metrics) {
-        final hr = metrics.getMetric(MetricType.hr);
-        if (hr != null) {
-          session.buffer.add(
-            _HrSample(
-              timestampMs: metrics.timestamp.millisecondsSinceEpoch,
-              bpm: hr.toDouble(),
-              rrIntervalsMs: const [],
-            ),
-          );
-        }
-      });
-    }
+      ),
+    );
   }
 
   void _emitFrame(_RunningSession session, int nowMs) {
+    if (session.controller.isClosed) return;
     final metrics = _computeMetrics(session.config, session, nowMs);
-    _pullBehavior().then((behaviorJson) {
-      if (session.controller.isClosed) return;
-      session.controller.add(
-        SessionFrame(
-          sessionId: session.config.sessionId,
-          seq: session.seq,
-          emittedAtMs: nowMs,
-          metrics: metrics,
-          behavior: behaviorJson,
-        ),
-      );
-    });
+    session.controller.add(
+      SessionFrame(
+        sessionId: session.config.sessionId,
+        seq: session.seq,
+        emittedAtMs: nowMs,
+        metrics: metrics,
+        behavior: _pullBehavior(),
+      ),
+    );
   }
 
   void _finishSession(String sessionId) {
@@ -154,19 +139,17 @@ class LiveSessionEngine {
     final durationActual = (now - session.startedAtMs) ~/ 1000;
     final metrics = _computeMetrics(session.config, session, now);
 
-    _pullBehavior().then((behaviorJson) {
-      session.controller
-        ..add(
-          SessionSummary(
-            sessionId: sessionId,
-            durationActualSec: durationActual,
-            metrics: metrics,
-            behavior: behaviorJson,
-          ),
-        )
-        ..close();
-      _sessions.remove(sessionId);
-    });
+    session.controller
+      ..add(
+        SessionSummary(
+          sessionId: sessionId,
+          durationActualSec: durationActual,
+          metrics: metrics,
+          behavior: _pullBehavior(),
+        ),
+      )
+      ..close();
+    _sessions.remove(sessionId);
   }
 
   void _cancelSession(String sessionId) {
@@ -177,15 +160,10 @@ class LiveSessionEngine {
       ..controller.close();
   }
 
-  Future<Map<String, dynamic>?> _pullBehavior() async {
-    final b = _behavior;
-    if (b == null || !b.isInitialized) return null;
-    try {
-      final stats = await b.getCurrentStats();
-      return stats.toJson();
-    } catch (_) {
-      return null;
-    }
+  Map<String, dynamic>? _pullBehavior() {
+    final bp = _behaviorProvider;
+    if (bp == null || !bp.isAvailable) return null;
+    return bp.currentSnapshot()?.toJson();
   }
 
   Map<String, dynamic> _computeMetrics(

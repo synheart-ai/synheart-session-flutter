@@ -20,8 +20,6 @@ dependencies:
   flutter:
     sdk: flutter
   meta: ^1.16.0
-  synheart_behavior: ^0.2.0
-  synheart_wear: ^0.3.0
   uuid: ^4.4.0
 
 dev_dependencies:
