@@ -8,8 +8,8 @@ Dart / Flutter SDK for Synheart Session — stream-based session API with typed 
 
 ## Features
 
-- Stream real-time HR data from wearables (`synheart_wear`) or any BLE HRM (via `BleHrmProvider`)
-- Fuse behavioral signals (`synheart_behavior`) alongside HR metrics in session frames
+- Stream real-time biosignal data from wearables or HR BLE HRMs via (`synheart_wear`) 
+- Fuse behavioral signals (`synheart_behavior`) alongside Biosignal metrics in session frames
 - Dart-side `LiveSessionEngine` with real SDNN/RMSSD computation from RR intervals
 - Apple Watch relay via WCSession (iOS)
 - Built-in mock engine for local development and testing (no wearable required)
@@ -20,7 +20,7 @@ Dart / Flutter SDK for Synheart Session — stream-based session API with typed 
 
 ```yaml
 dependencies:
-  synheart_session: ^0.1.0
+  synheart_session: ^0.2.0
 ```
 
 ```bash
@@ -109,6 +109,76 @@ stream.listen((event) {
 });
 ```
 
+## SDK Usage
+
+### Error Handling
+
+```dart
+stream.listen(
+  (event) {
+    switch (event) {
+      case SessionError():
+        switch (event.code) {
+          case SessionErrorCode.permissionDenied:
+            print('HR permission not granted');
+          case SessionErrorCode.sensorUnavailable:
+            print('No HR sensor available');
+          case SessionErrorCode.lowBattery:
+            print('Device battery too low');
+          case SessionErrorCode.osTerminated:
+            print('Session killed by OS');
+          case SessionErrorCode.invalidState:
+            print('Invalid session state');
+        }
+      default:
+        break;
+    }
+  },
+);
+```
+
+### Mock Provider for Testing
+
+```dart
+// Use MockBehaviorProvider for deterministic behavioral data
+final session = SynheartSession.mock(
+  behaviorProvider: MockBehaviorProvider(),
+);
+
+// Mock engine generates sinusoidal HR data — no wearable needed
+// Ideal for unit tests, integration tests, and UI development
+```
+
+### Integration with synheart-wear
+
+```dart
+import 'package:synheart_wear/synheart_wear.dart';
+
+// BLE HRM streaming
+final bleHrm = BleHrmProvider();
+final devices = await bleHrm.scan(timeoutMs: 10000);
+await bleHrm.connect(deviceId: devices.first.deviceId);
+final session = SynheartSession(bleHrm: bleHrm);
+
+// Or via SynheartWear (Apple Watch relay, Health Connect, etc.)
+final wear = SynheartWear(config: SynheartWearConfig.production());
+await wear.initialize();
+final session2 = SynheartSession(wear: wear);
+```
+
+### Integration with synheart-behavior
+
+```dart
+import 'package:synheart_behavior/synheart_behavior.dart';
+
+final behavior = await SynheartBehavior.initialize();
+final session = SynheartSession(wear: wear, behavior: behavior);
+
+// session_frame events include a "behavior" key with:
+// typing_cadence, scroll_velocity, tap_rate, app_switches_per_minute,
+// idle_gap_seconds, stability_index, fragmentation_index, etc.
+```
+
 ## Architecture
 
 ```
@@ -184,6 +254,15 @@ IDLE → startSession() → SessionStarted
 | `SessionSummary` | `sessionId`, `durationActualSec`, `metrics`, `behavior?` |
 | `SessionError` | `sessionId`, `code`, `message` |
 
+## Privacy & Security
+
+- **Session-Based Only**: No passive or background HR tracking
+- **On-Device Processing**: All metrics computation happens locally (Dart-side `LiveSessionEngine`)
+- **No Raw HR Transmission**: Raw heart rate samples stay on device unless explicitly enabled via `includeRawSamples`
+- **No Network Calls**: The SDK makes zero network calls — you control what gets persisted or transmitted
+- **No Data Retention**: Raw biometric data is not retained after processing
+- **Not a Medical Device**: This library is for wellness and research purposes only
+
 ## Platform Setup
 
 ### iOS
@@ -194,7 +273,7 @@ Requires iOS 13.0+. For BLE HR streaming, connect a heart rate monitor via `synh
 
 Requires API 21+. All session compute runs in Dart. The native plugin is a registration stub.
 
-## Development
+## Testing
 
 ```bash
 # Run tests

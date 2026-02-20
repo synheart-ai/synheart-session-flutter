@@ -39,22 +39,6 @@ void main() {
     });
   });
 
-  group('PayloadEncoding', () {
-    test('value returns wire string', () {
-      expect(PayloadEncoding.jsonUtf8.value, 'json_utf8');
-    });
-
-    test('fromString roundtrips', () {
-      for (final enc in PayloadEncoding.values) {
-        expect(PayloadEncoding.fromString(enc.value), enc);
-      }
-    });
-
-    test('fromString throws on unknown', () {
-      expect(() => PayloadEncoding.fromString('unknown'), throwsArgumentError);
-    });
-  });
-
   group('ComputeProfile', () {
     test('defaults', () {
       const profile = ComputeProfile();
@@ -153,7 +137,6 @@ void main() {
         'session_id': 'abc',
         'seq': 1,
         'emitted_at_ms': 2000,
-        'encoding': 'json_utf8',
         'metrics': <String, dynamic>{'hr_mean_bpm': 72.0},
       });
       expect(event, isA<SessionFrame>());
@@ -167,7 +150,6 @@ void main() {
         'type': 'session_summary',
         'session_id': 'abc',
         'duration_actual_sec': 300,
-        'encoding': 'json_utf8',
         'metrics': <String, dynamic>{'hr_mean_bpm': 72.0},
       });
       expect(event, isA<SessionSummary>());

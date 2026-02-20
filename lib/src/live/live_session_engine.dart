@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:synheart_behavior/synheart_behavior.dart';
-import 'package:synheart_session/src/types/ble_hrm_provider.dart';
 import 'package:synheart_session/src/types/session_config.dart';
 import 'package:synheart_session/src/types/session_event.dart';
 import 'package:synheart_session/src/types/session_status.dart';
@@ -107,7 +106,7 @@ class LiveSessionEngine {
       session.hrSubscription = _bleHrm.onHeartRate.listen(
         (sample) => session.buffer.add(
           _HrSample(
-            timestampMs: sample.timestampMs,
+            timestampMs: sample.tsMs,
             bpm: sample.bpm,
             rrIntervalsMs: sample.rrIntervalsMs,
           ),

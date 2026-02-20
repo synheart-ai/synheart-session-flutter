@@ -32,18 +32,3 @@ enum SessionErrorCode {
     );
   }
 }
-
-enum PayloadEncoding {
-  jsonUtf8('json_utf8');
-
-  const PayloadEncoding(this.value);
-
-  final String value;
-
-  static PayloadEncoding fromString(String value) {
-    return PayloadEncoding.values.firstWhere(
-      (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown PayloadEncoding: $value'),
-    );
-  }
-}

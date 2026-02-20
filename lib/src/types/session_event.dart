@@ -1,6 +1,6 @@
 import 'package:meta/meta.dart';
 import 'package:synheart_session/src/types/biosignal_sample.dart';
-import 'package:synheart_session/src/types/enums.dart';
+import 'package:synheart_session/src/types/enums.dart' show SessionErrorCode;
 
 sealed class SessionEvent {
   const SessionEvent({required this.sessionId});
@@ -65,7 +65,6 @@ class SessionFrame extends SessionEvent {
     required this.emittedAtMs,
     required this.metrics,
     this.behavior,
-    this.encoding = PayloadEncoding.jsonUtf8,
   });
 
   factory SessionFrame.fromJson(Map<String, dynamic> json) {
@@ -73,9 +72,6 @@ class SessionFrame extends SessionEvent {
       sessionId: json['session_id'] as String,
       seq: json['seq'] as int,
       emittedAtMs: json['emitted_at_ms'] as int,
-      encoding: json['encoding'] != null
-          ? PayloadEncoding.fromString(json['encoding'] as String)
-          : PayloadEncoding.jsonUtf8,
       metrics: json['metrics'] as Map<String, dynamic>,
       behavior: json['behavior'] as Map<String, dynamic>?,
     );
@@ -83,7 +79,6 @@ class SessionFrame extends SessionEvent {
 
   final int seq;
   final int emittedAtMs;
-  final PayloadEncoding encoding;
   final Map<String, dynamic> metrics;
 
   /// Behavioral signal snapshot, present when a behavior provider is
@@ -97,7 +92,6 @@ class SessionFrame extends SessionEvent {
       'session_id': sessionId,
       'seq': seq,
       'emitted_at_ms': emittedAtMs,
-      'encoding': encoding.value,
       'metrics': metrics,
     };
     if (behavior != null) json['behavior'] = behavior;
@@ -110,16 +104,15 @@ class SessionFrame extends SessionEvent {
       other is SessionFrame &&
           sessionId == other.sessionId &&
           seq == other.seq &&
-          emittedAtMs == other.emittedAtMs &&
-          encoding == other.encoding;
+          emittedAtMs == other.emittedAtMs;
 
   @override
-  int get hashCode => Object.hash(sessionId, seq, emittedAtMs, encoding);
+  int get hashCode => Object.hash(sessionId, seq, emittedAtMs);
 
   @override
   String toString() =>
       'SessionFrame(sessionId: $sessionId, seq: $seq, '
-      'emittedAtMs: $emittedAtMs, encoding: ${encoding.value})';
+      'emittedAtMs: $emittedAtMs)';
 }
 
 @immutable
@@ -129,23 +122,18 @@ class SessionSummary extends SessionEvent {
     required this.durationActualSec,
     required this.metrics,
     this.behavior,
-    this.encoding = PayloadEncoding.jsonUtf8,
   });
 
   factory SessionSummary.fromJson(Map<String, dynamic> json) {
     return SessionSummary(
       sessionId: json['session_id'] as String,
       durationActualSec: json['duration_actual_sec'] as int,
-      encoding: json['encoding'] != null
-          ? PayloadEncoding.fromString(json['encoding'] as String)
-          : PayloadEncoding.jsonUtf8,
       metrics: json['metrics'] as Map<String, dynamic>,
       behavior: json['behavior'] as Map<String, dynamic>?,
     );
   }
 
   final int durationActualSec;
-  final PayloadEncoding encoding;
   final Map<String, dynamic> metrics;
 
   /// Behavioral signal snapshot, present when a behavior provider is
@@ -158,7 +146,6 @@ class SessionSummary extends SessionEvent {
       'type': 'session_summary',
       'session_id': sessionId,
       'duration_actual_sec': durationActualSec,
-      'encoding': encoding.value,
       'metrics': metrics,
     };
     if (behavior != null) json['behavior'] = behavior;
@@ -170,17 +157,15 @@ class SessionSummary extends SessionEvent {
       identical(this, other) ||
       other is SessionSummary &&
           sessionId == other.sessionId &&
-          durationActualSec == other.durationActualSec &&
-          encoding == other.encoding;
+          durationActualSec == other.durationActualSec;
 
   @override
-  int get hashCode => Object.hash(sessionId, durationActualSec, encoding);
+  int get hashCode => Object.hash(sessionId, durationActualSec);
 
   @override
   String toString() =>
       'SessionSummary(sessionId: $sessionId, '
-      'durationActualSec: $durationActualSec, '
-      'encoding: ${encoding.value})';
+      'durationActualSec: $durationActualSec)';
 }
 
 @immutable

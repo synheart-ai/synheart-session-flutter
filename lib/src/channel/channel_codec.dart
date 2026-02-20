@@ -1,4 +1,3 @@
-import 'package:synheart_session/src/types/enums.dart';
 import 'package:synheart_session/src/types/session_config.dart';
 import 'package:synheart_session/src/types/session_event.dart';
 import 'package:synheart_session/src/types/session_status.dart';
@@ -12,8 +11,7 @@ Map<String, dynamic> encodeStopSession(String sessionId) {
 }
 
 SessionEvent decodeSessionEvent(dynamic raw) {
-  final map = _deepCast(raw as Map)
-    ..putIfAbsent('encoding', () => PayloadEncoding.jsonUtf8.value);
+  final map = _deepCast(raw as Map);
   return SessionEvent.fromJson(map);
 }
 

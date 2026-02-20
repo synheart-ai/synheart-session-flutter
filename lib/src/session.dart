@@ -6,7 +6,6 @@ import 'package:synheart_session/src/live/live_session_engine.dart';
 import 'package:synheart_session/src/mock/mock_session_engine.dart';
 import 'package:synheart_session/src/session_error.dart';
 import 'package:synheart_session/src/types/behavior_provider.dart';
-import 'package:synheart_session/src/types/ble_hrm_provider.dart';
 import 'package:synheart_session/src/types/session_config.dart';
 import 'package:synheart_session/src/types/session_event.dart';
 import 'package:synheart_session/src/types/session_status.dart';
