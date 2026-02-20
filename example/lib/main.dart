@@ -204,13 +204,11 @@ class _SessionPageState extends State<SessionPage> {
       if (_hrHistory.length > 60) _hrHistory.removeAt(0);
     });
 
-    // Show emittedAtMs, encoding, and behavioral fields
+    // Show emittedAtMs and behavioral fields
     final emittedAt = DateTime.fromMillisecondsSinceEpoch(frame.emittedAtMs);
-    final encodingStr = frame.encoding.value;
     _addLog(
       '#${frame.seq}  HR ${hr.toStringAsFixed(1)} bpm  '
       'SDNN ${sdnn.toStringAsFixed(1)} ms  '
-      'enc=$encodingStr  '
       'at ${emittedAt.hour}:${emittedAt.minute.toString().padLeft(2, '0')}:${emittedAt.second.toString().padLeft(2, '0')}'
       '${stability != null ? '  stab=${stability.toStringAsFixed(2)}' : ''}'
       '${fragmentation != null ? '  frag=${fragmentation.toStringAsFixed(2)}' : ''}'
@@ -252,7 +250,7 @@ class _SessionPageState extends State<SessionPage> {
   }
 
   void _handleSessionSummary(SessionSummary event) {
-    // Show summary metrics, encoding, and behavioral summary
+    // Show summary metrics and behavioral summary
     final sm = event.metrics;
     final summaryHr = (sm['hr_mean_bpm'] as num?)?.toDouble();
     final summarySdnn = (sm['hr_sdnn_ms'] as num?)?.toDouble();
@@ -268,8 +266,7 @@ class _SessionPageState extends State<SessionPage> {
     final idleGap = (behavior?['idle_gap_seconds'] as num?)?.toDouble();
 
     _addLog(
-      'Session complete: ${event.durationActualSec}s  '
-      'enc=${event.encoding.value}',
+      'Session complete: ${event.durationActualSec}s',
       _LogType.success,
     );
 
