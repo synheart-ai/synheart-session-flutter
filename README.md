@@ -252,6 +252,15 @@ dart format .
 dart pub publish --dry-run
 ```
 
+## Watch Companion Apps
+
+The Session SDK is designed to work with watch companion apps that unlock real-time biometric streaming. Due to HealthKit (iOS) and Health Services (Android) API limitations, real-time HR/HRV data requires an active workout or exercise session on the watch — the Session SDK handles this automatically.
+
+- [synheart-wear-watch-ios](https://github.com/synheart-ai/synheart-wear-watch-ios) — watchOS companion (HKWorkoutSession, WCSession relay)
+- [synheart-wear-watch-android](https://github.com/synheart-ai/synheart-wear-watch-android) — Wear OS companion (Health Services, MessageClient/DataClient relay)
+
+When a session starts on the phone, the companion app starts a workout/exercise session on the watch, enabling continuous HR, HRV, and accelerometer streaming back to the phone SDK.
+
 ## Related Packages
 
 | Package | Description |
