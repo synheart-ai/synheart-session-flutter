@@ -50,7 +50,10 @@ class SynheartSession {
   /// only events from the watch relay are emitted. Use this for watch sessions
   /// so [hr_mean_bpm] and other metrics come from the watch instead of
   /// zeroed local frames.
-  Stream<SessionEvent> startSession(SessionConfig config, {bool watchOnly = false}) {
+  Stream<SessionEvent> startSession(
+    SessionConfig config, {
+    bool watchOnly = false,
+  }) {
     _checkDisposed();
 
     if (_controllers.containsKey(config.sessionId)) {
@@ -78,7 +81,8 @@ class SynheartSession {
     }
 
     final channel = _channel;
-    final hasWatchSession = channel != null && _controllers.containsKey(sessionId);
+    final hasWatchSession =
+        channel != null && _controllers.containsKey(sessionId);
 
     if (hasWatchSession) {
       // Cancel local engine first so its duration timer cannot fire and emit a
@@ -272,9 +276,11 @@ class SynheartSession {
         }),
       );
     } else {
-      controller.addError(const SessionInvalidStateError(
-        'Watch-only session requires a session channel (watch relay)',
-      ));
+      controller.addError(
+        const SessionInvalidStateError(
+          'Watch-only session requires a session channel (watch relay)',
+        ),
+      );
       controller.close();
       _controllers.remove(config.sessionId);
     }
