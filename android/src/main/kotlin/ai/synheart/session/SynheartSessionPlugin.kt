@@ -67,14 +67,21 @@ class SynheartSessionPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
         }
 
         val sink: (Map<String, Any?>) -> Unit = { event ->
-            eventSink?.success(event)
+            if (eventSink == null) {
+                android.util.Log.w("SynheartSession", "eventSink is null, dropping watch event type=${event["type"]}")
+            } else {
+                eventSink?.success(event)
+            }
         }
 
         relay.checkReachable { reachable ->
+            android.util.Log.d("SynheartSession", "checkReachable=$reachable for session ${config["session_id"]}")
             if (reachable) {
+                android.util.Log.d("SynheartSession", "Sending start_session to watch")
                 relay.startSession(config, sink)
+            } else {
+                android.util.Log.w("SynheartSession", "Watch NOT reachable — session will run locally only")
             }
-            // If watch not reachable, just return — Dart LiveSessionEngine handles locally
             result.success(null)
         }
     }

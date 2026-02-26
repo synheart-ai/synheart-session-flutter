@@ -45,7 +45,12 @@ class SynheartSession {
 
   /// Start a session. Returns stream of SessionEvents.
   /// Stream lifecycle: SessionStarted -> SessionFrame* -> SessionSummary
-  Stream<SessionEvent> startSession(SessionConfig config) {
+  ///
+  /// When [watchOnly] is true, the local [LiveSessionEngine] is not started;
+  /// only events from the watch relay are emitted. Use this for watch sessions
+  /// so [hr_mean_bpm] and other metrics come from the watch instead of
+  /// zeroed local frames.
+  Stream<SessionEvent> startSession(SessionConfig config, {bool watchOnly = false}) {
     _checkDisposed();
 
     if (_controllers.containsKey(config.sessionId)) {
@@ -57,6 +62,9 @@ class SynheartSession {
     if (_mockEngine != null) {
       return _startMockSession(config);
     }
+    if (watchOnly) {
+      return _startWatchOnlySession(config);
+    }
     return _startLiveSession(config);
   }
 
@@ -66,7 +74,24 @@ class SynheartSession {
 
     if (_mockEngine != null) {
       await _mockEngine.stopSession(sessionId);
-    } else if (_liveEngine != null) {
+      return;
+    }
+
+    final channel = _channel;
+    final hasWatchSession = channel != null && _controllers.containsKey(sessionId);
+
+    if (hasWatchSession) {
+      // Cancel local engine first so its duration timer cannot fire and emit a
+      // local summary; then tell the watch to stop. The stream stays open until
+      // the watch sends SessionSummary.
+      _liveEngine?.cancelSession(sessionId);
+      try {
+        await channel.stopSession(sessionId);
+      } catch (_) {}
+      return;
+    }
+
+    if (_liveEngine != null) {
       await _liveEngine.stopSession(sessionId);
     }
   }
@@ -157,7 +182,8 @@ class SynheartSession {
     final controller = StreamController<SessionEvent>.broadcast();
     _controllers[config.sessionId] = controller;
 
-    // Also start the watch relay channel listener for watch events
+    // Subscribe to watch relay events FIRST so the native eventSink is set
+    // before we send startSession (otherwise early watch frames can be dropped).
     _channelSubscription ??= _channel?.events.listen(
       _routeChannelEvent,
       onError: (Object error) {
@@ -166,6 +192,25 @@ class SynheartSession {
         }
       },
     );
+
+    // Small delay so the platform has time to call onListen and set eventSink
+    // before the watch sends its first events.
+    final channel = _channel;
+    if (channel != null) {
+      unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 200), () async {
+          try {
+            await channel.startSession(config);
+          } catch (e, _) {
+            assert(() {
+              // ignore: avoid_print
+              print('WatchSession: startSession channel error: $e');
+              return true;
+            }());
+          }
+        }),
+      );
+    }
 
     final sub = liveStream.listen(
       (event) {
@@ -189,6 +234,52 @@ class SynheartSession {
 
     controller.onCancel = () {
       sub.cancel();
+      _controllers.remove(config.sessionId);
+    };
+
+    return controller.stream;
+  }
+
+  /// Starts a session that only receives events from the watch relay.
+  /// No local [LiveSessionEngine] frames are emitted, so metrics like
+  /// [hr_mean_bpm] come only from the watch.
+  Stream<SessionEvent> _startWatchOnlySession(SessionConfig config) {
+    final controller = StreamController<SessionEvent>.broadcast();
+    _controllers[config.sessionId] = controller;
+
+    _channelSubscription ??= _channel?.events.listen(
+      _routeChannelEvent,
+      onError: (Object error) {
+        for (final c in _controllers.values) {
+          c.addError(error);
+        }
+      },
+    );
+
+    final channel = _channel;
+    if (channel != null) {
+      unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 200), () async {
+          try {
+            await channel.startSession(config);
+          } catch (e, _) {
+            assert(() {
+              // ignore: avoid_print
+              print('WatchSession: startSession channel error: $e');
+              return true;
+            }());
+          }
+        }),
+      );
+    } else {
+      controller.addError(const SessionInvalidStateError(
+        'Watch-only session requires a session channel (watch relay)',
+      ));
+      controller.close();
+      _controllers.remove(config.sessionId);
+    }
+
+    controller.onCancel = () {
       _controllers.remove(config.sessionId);
     };
 

@@ -79,6 +79,13 @@ class LiveSessionEngine {
     _finishSession(sessionId);
   }
 
+  /// Cancels a session without emitting SessionSummary or closing the stream.
+  /// Use when the summary will come from another source (e.g. watch relay).
+  void cancelSession(String sessionId) {
+    final session = _sessions.remove(sessionId);
+    if (session != null) session.dispose();
+  }
+
   SessionStatus? getStatus(String sessionId) {
     final session = _sessions[sessionId];
     if (session == null) return null;

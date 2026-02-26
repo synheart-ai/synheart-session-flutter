@@ -95,6 +95,7 @@ class WatchSessionRelay(private val context: Context) : MessageClient.OnMessageR
     /** Whether at least one Wear OS node is currently connected. */
     fun checkReachable(callback: (Boolean) -> Unit) {
         if (!isPlayServicesAvailable()) {
+            Log.w(TAG, "Google Play Services NOT available — watch relay disabled")
             callback(false)
             return
         }
@@ -102,8 +103,13 @@ class WatchSessionRelay(private val context: Context) : MessageClient.OnMessageR
         scope.launch {
             val reachable = try {
                 val nodes = nodeClient.connectedNodes.await()
+                Log.d(TAG, "connectedNodes: ${nodes.size} node(s) found")
+                for (node in nodes) {
+                    Log.d(TAG, "  node: id=${node.id} name=${node.displayName} nearby=${node.isNearby}")
+                }
                 nodes.isNotEmpty()
             } catch (e: Exception) {
+                Log.w(TAG, "connectedNodes failed: ${e.message}")
                 false
             }
             mainHandler.post { callback(reachable) }
@@ -188,11 +194,16 @@ class WatchSessionRelay(private val context: Context) : MessageClient.OnMessageR
 
         val json = JSONObject(String(messageEvent.data, Charsets.UTF_8))
         val eventMap = jsonToMap(json)
+        val type = eventMap["type"] as? String ?: ""
+        Log.d(TAG, "onMessageReceived: type=$type path=${messageEvent.path} sourceNode=${messageEvent.sourceNodeId}")
 
         mainHandler.post {
-            eventCallback?.invoke(eventMap)
+            if (eventCallback == null) {
+                Log.w(TAG, "onMessageReceived: eventCallback is null, dropping event type=$type")
+            } else {
+                eventCallback?.invoke(eventMap)
+            }
 
-            val type = eventMap["type"] as? String ?: ""
             if (type == "session_summary" || type == "session_error") {
                 cleanup()
             }
