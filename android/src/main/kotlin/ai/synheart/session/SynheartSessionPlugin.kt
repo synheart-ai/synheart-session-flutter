@@ -16,6 +16,10 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
  */
 class SynheartSessionPlugin : FlutterPlugin, MethodCallHandler, EventChannel.StreamHandler {
 
+    companion object {
+        private const val TAG = "SynheartSession"
+    }
+
     private lateinit var methodChannel: MethodChannel
     private lateinit var eventChannel: EventChannel
     private var watchRelay: WatchSessionRelay? = null
@@ -67,20 +71,16 @@ class SynheartSessionPlugin : FlutterPlugin, MethodCallHandler, EventChannel.Str
         }
 
         val sink: (Map<String, Any?>) -> Unit = { event ->
-            if (eventSink == null) {
-                android.util.Log.w("SynheartSession", "eventSink is null, dropping watch event type=${event["type"]}")
-            } else {
+            if (eventSink != null) {
                 eventSink?.success(event)
+            } else {
+                android.util.Log.w(TAG, "eventSink is null, dropping event type=${event["type"]}")
             }
         }
 
         relay.checkReachable { reachable ->
-            android.util.Log.d("SynheartSession", "checkReachable=$reachable for session ${config["session_id"]}")
             if (reachable) {
-                android.util.Log.d("SynheartSession", "Sending start_session to watch")
                 relay.startSession(config, sink)
-            } else {
-                android.util.Log.w("SynheartSession", "Watch NOT reachable — session will run locally only")
             }
             result.success(null)
         }

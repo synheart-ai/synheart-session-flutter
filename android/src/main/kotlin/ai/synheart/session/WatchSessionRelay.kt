@@ -103,9 +103,11 @@ class WatchSessionRelay(private val context: Context) : MessageClient.OnMessageR
         scope.launch {
             val reachable = try {
                 val nodes = nodeClient.connectedNodes.await()
-                Log.d(TAG, "connectedNodes: ${nodes.size} node(s) found")
-                for (node in nodes) {
-                    Log.d(TAG, "  node: id=${node.id} name=${node.displayName} nearby=${node.isNearby}")
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(TAG, "connectedNodes: ${nodes.size} node(s) found")
+                    for (node in nodes) {
+                        Log.d(TAG, "  node: id=${node.id} name=${node.displayName} nearby=${node.isNearby}")
+                    }
                 }
                 nodes.isNotEmpty()
             } catch (e: Exception) {
@@ -195,13 +197,15 @@ class WatchSessionRelay(private val context: Context) : MessageClient.OnMessageR
         val json = JSONObject(String(messageEvent.data, Charsets.UTF_8))
         val eventMap = jsonToMap(json)
         val type = eventMap["type"] as? String ?: ""
-        Log.d(TAG, "onMessageReceived: type=$type path=${messageEvent.path} sourceNode=${messageEvent.sourceNodeId}")
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
+            Log.d(TAG, "onMessageReceived: type=$type sourceNode=${messageEvent.sourceNodeId}")
+        }
 
         mainHandler.post {
-            if (eventCallback == null) {
-                Log.w(TAG, "onMessageReceived: eventCallback is null, dropping event type=$type")
-            } else {
+            if (eventCallback != null) {
                 eventCallback?.invoke(eventMap)
+            } else {
+                Log.w(TAG, "eventCallback is null, dropping event type=$type")
             }
 
             if (type == "session_summary" || type == "session_error") {
