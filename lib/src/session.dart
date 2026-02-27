@@ -10,13 +10,14 @@ import 'package:synheart_session/src/types/session_config.dart';
 import 'package:synheart_session/src/types/session_event.dart';
 import 'package:synheart_session/src/types/session_status.dart';
 import 'package:synheart_session/src/types/watch_status.dart';
+import 'package:synheart_session/src/watch/watch_biosignal_provider.dart';
 
 class SynheartSession {
   /// Live mode — consumes real data from provider abstractions.
   ///
-  /// All parameters are optional. When no [biosignalProvider] is supplied,
-  /// falls back to the iOS watch relay (via [SessionChannel]) if reachable,
-  /// or emits zeroed metrics otherwise.
+  /// All parameters are optional. When [biosignalProvider] is a
+  /// [WatchBiosignalProvider], watch relay commands (start/stop) are sent
+  /// automatically via the provider's channel.
   SynheartSession({
     BiosignalProvider? biosignalProvider,
     BehaviorProvider? behaviorProvider,
@@ -25,7 +26,9 @@ class SynheartSession {
          biosignalProvider: biosignalProvider,
          behaviorProvider: behaviorProvider,
        ),
-       _channel = SessionChannel();
+       _channel = biosignalProvider is WatchBiosignalProvider
+           ? biosignalProvider.channel
+           : null;
 
   /// Mock mode — simulates sessions locally for development.
   SynheartSession.mock({int? seed, BehaviorProvider? behaviorProvider})
@@ -40,7 +43,6 @@ class SynheartSession {
   final LiveSessionEngine? _liveEngine;
   final SessionChannel? _channel;
   final Map<String, StreamController<SessionEvent>> _controllers = {};
-  StreamSubscription<SessionEvent>? _channelSubscription;
   bool _disposed = false;
 
   /// Start a session. Returns stream of SessionEvents.
@@ -66,8 +68,23 @@ class SynheartSession {
 
     if (_mockEngine != null) {
       await _mockEngine.stopSession(sessionId);
-    } else if (_liveEngine != null) {
+      return;
+    }
+
+    // Always stop local engine (emits SessionSummary + closes stream)
+    if (_liveEngine != null) {
       await _liveEngine.stopSession(sessionId);
+    }
+
+    // Also tell the watch to stop (no-op if no channel)
+    try {
+      await _channel?.stopSession(sessionId);
+    } catch (e) {
+      assert(() {
+        // ignore: avoid_print
+        print('WatchSession: stopSession channel error: $e');
+        return true;
+      }(), 'stopSession channel error: $e');
     }
   }
 
@@ -109,7 +126,6 @@ class SynheartSession {
 
     _mockEngine?.dispose();
     _liveEngine?.dispose();
-    _channelSubscription?.cancel();
 
     for (final controller in _controllers.values) {
       controller.close();
@@ -157,15 +173,11 @@ class SynheartSession {
     final controller = StreamController<SessionEvent>.broadcast();
     _controllers[config.sessionId] = controller;
 
-    // Also start the watch relay channel listener for watch events
-    _channelSubscription ??= _channel?.events.listen(
-      _routeChannelEvent,
-      onError: (Object error) {
-        for (final c in _controllers.values) {
-          c.addError(error);
-        }
-      },
-    );
+    // Tell the watch to start (no-op if no channel / watch not connected).
+    // No delay needed: EventChannel onListen was triggered by
+    // provider.startStreaming() (called inside startSession above),
+    // which is queued on the platform thread before this MethodChannel call.
+    _channel?.startSession(config);
 
     final sub = liveStream.listen(
       (event) {
@@ -193,17 +205,6 @@ class SynheartSession {
     };
 
     return controller.stream;
-  }
-
-  void _routeChannelEvent(SessionEvent event) {
-    final controller = _controllers[event.sessionId];
-    if (controller == null) return;
-
-    controller.add(event);
-    if (event is SessionSummary || event is SessionError) {
-      controller.close();
-      _controllers.remove(event.sessionId);
-    }
   }
 
   void _checkDisposed() {
