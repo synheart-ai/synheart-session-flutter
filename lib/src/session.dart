@@ -119,6 +119,13 @@ class SynheartSession {
     return _channel.getWatchStatus();
   }
 
+  /// Ingest pre-computed HRV metrics from session-runtime into the live engine.
+  /// No-op in mock mode or if no session with [sessionId] is active.
+  void ingestHsiMetrics(String sessionId, Map<String, dynamic> hsiMetrics) {
+    if (_disposed) return;
+    _liveEngine?.ingestHsiMetrics(sessionId, hsiMetrics);
+  }
+
   /// Release all resources.
   void dispose() {
     if (_disposed) return;
