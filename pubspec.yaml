@@ -1,9 +1,9 @@
 name: synheart_session
 description: Flutter SDK for Synheart Session — stream-based session API with typed events for HR metrics and behavioral signals.
 version: 0.2.0
-homepage: https://github.com/synheart-ai/synheart-session-dart
-repository: https://github.com/synheart-ai/synheart-session-dart
-issue_tracker: https://github.com/synheart-ai/synheart-session-dart/issues
+homepage: https://github.com/synheart-ai/synheart-session-flutter
+repository: https://github.com/synheart-ai/synheart-session-flutter
+issue_tracker: https://github.com/synheart-ai/synheart-session-flutter/issues
 license: Apache-2.0
 topics:
   - session
