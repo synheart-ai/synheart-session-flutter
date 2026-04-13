@@ -10,7 +10,7 @@ Dart / Flutter SDK for Synheart Session — stream-based session API with typed 
 
 - Pluggable BiosignalProvider interface for any HR source (BLE HRM, HealthKit, mock)
 - Optional BehaviorProvider interface for behavioral signal fusion (typing, scrolling, taps)
-- Dart-side `LiveSessionEngine` with real SDNN/RMSSD computation from RR intervals
+- Dart-side `LiveSessionEngine` with HRV metrics (SDNN, RMSSD, pNN50) from session-runtime; mean HR computed locally
 - Watch relay — Apple Watch (WCSession) and Wear OS (Wearable Data Layer)
 - Built-in mock engine for local development and testing (no wearable required)
 - Type-safe session events: `SessionStarted`, `SessionFrame`, `SessionSummary`, `SessionError`
@@ -153,7 +153,7 @@ SynheartSession (Dart)
      ├── LiveSessionEngine [Dart]
      │    ├── BiosignalProvider.startStreaming() → _HrRingBuffer
      │    ├── BehaviorProvider.currentSnapshot() [sync at each tick]
-     │    ├── _computeMetrics() [SDNN, RMSSD from real RR intervals]
+     │    ├── _computeMetrics() [mean HR local + HRV from session-runtime]
      │    └── Timer.periodic → SessionFrame / SessionSummary
      │
      └── SessionChannel (watch relay — iOS + Android)
@@ -225,6 +225,21 @@ IDLE → startSession() → SessionStarted
 - **No Network Calls**: The SDK makes zero network calls — you control what gets persisted or transmitted
 - **No Data Retention**: Raw biometric data is not retained after processing
 - **Not a Medical Device**: This library is for wellness and research purposes only
+
+## Standalone vs Core SDK
+
+**With Synheart Core SDK:** HRV metrics (SDNN, RMSSD, pNN50) are automatically piped from the Rust session-runtime via `ingestHsiMetrics()`. No action needed — the core SDK wires this up during session lifecycle.
+
+**Standalone (without core SDK):** Your app must call `engine.ingestHsiMetrics(sessionId, metrics)` with pre-computed HRV values. If not called, HRV metrics default to `0.0` — mean HR is still computed locally from the sample buffer.
+
+```dart
+// Standalone usage: manually provide HRV
+engine.ingestHsiMetrics(sessionId, {
+  'hrv.sdnn_ms': 42.5,
+  'hrv.rmssd_ms': 38.1,
+  'hrv.pnn50': 21.3,
+});
+```
 
 ## Platform Setup
 

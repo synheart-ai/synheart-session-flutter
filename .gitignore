@@ -53,3 +53,8 @@ coverage/
 # Archives
 *.zip
 
+# Secrets & credentials
+*.asc
+*.key
+*private*
+.env

@@ -144,5 +144,43 @@ void main() {
       expect(summary.durationActualSec, greaterThanOrEqualTo(1));
       expect(summary.sessionId, 'live-duration');
     });
+
+    test('ingestHsiMetrics populates HRV in emitted frame metrics', () async {
+      final config = SessionConfig(
+        sessionId: 'live-hsi',
+        mode: SessionMode.focus,
+        durationSec: 3,
+        profile: const ComputeProfile(windowSec: 10, emitIntervalSec: 1),
+      );
+
+      final stream = engine.startSession(config);
+      final events = <SessionEvent>[];
+
+      // Ingest HRV metrics before frames are emitted
+      engine.ingestHsiMetrics('live-hsi', {
+        'hrv.sdnn_ms': 42.5,
+        'hrv.rmssd_ms': 38.1,
+        'hrv.pnn50': 21.3,
+      });
+
+      await for (final event in stream) {
+        events.add(event);
+        if (event is SessionFrame) {
+          expect(event.metrics['hr_sdnn_ms'], 42.5);
+          expect(event.metrics['rmssd_ms'], 38.1);
+          expect(event.metrics['pnn50'], 21.3);
+          await engine.stopSession('live-hsi');
+        }
+      }
+
+      expect(events.whereType<SessionFrame>(), isNotEmpty);
+    });
+
+    test('ingestHsiMetrics for unknown session is a no-op', () {
+      // Should not throw
+      engine.ingestHsiMetrics('nonexistent-session', {
+        'hrv.sdnn_ms': 50.0,
+      });
+    });
   });
 }

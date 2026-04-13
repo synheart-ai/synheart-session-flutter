@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:synheart_session/src/types/behavior_provider.dart';
 import 'package:synheart_session/src/types/biosignal_provider.dart';
@@ -166,6 +165,15 @@ class LiveSessionEngine {
     return bp.currentSnapshot()?.toJson();
   }
 
+  /// Ingest pre-computed HRV metrics from the Rust runtime (session-runtime).
+  /// These are artifact-filtered and authoritative — the session SDK does not
+  /// compute HRV locally.
+  void ingestHsiMetrics(String sessionId, Map<String, dynamic> hsiMetrics) {
+    final session = _sessions[sessionId];
+    if (session == null) return;
+    session.lastHsiMetrics = hsiMetrics;
+  }
+
   Map<String, dynamic> _computeMetrics(
     SessionConfig config,
     _RunningSession session,
@@ -174,69 +182,27 @@ class LiveSessionEngine {
     final windowMs = config.profile.windowSec * 1000;
     final samples = session.buffer.samplesInWindow(nowMs - windowMs, nowMs);
 
-    if (samples.isEmpty) {
-      return {
-        'hr_mean_bpm': 0.0,
-        'hr_sdnn_ms': 0.0,
-        'rmssd_ms': 0.0,
-        'sample_count': 0,
-        'start_ms': nowMs,
-        'end_ms': nowMs,
-        'session_id': config.sessionId,
-        'mode': config.mode.value,
-        'seq': session.seq,
-      };
-    }
+    // Base metrics: sample count and mean HR (no artifact filtering needed)
+    final sampleCount = samples.length;
+    final meanBpm = sampleCount > 0
+        ? samples.map((s) => s.bpm).reduce((a, b) => a + b) / sampleCount
+        : 0.0;
 
-    final bpmValues = samples.map((s) => s.bpm).toList();
-    final meanBpm = bpmValues.reduce((a, b) => a + b) / bpmValues.length;
-
-    // Collect all RR intervals from samples
-    final allRr = <double>[];
-    for (final s in samples) {
-      if (s.rrIntervalsMs.isNotEmpty) {
-        allRr.addAll(s.rrIntervalsMs);
-      } else {
-        // Approximate RR from BPM when real RR not available
-        allRr.add(60000.0 / s.bpm);
-      }
-    }
-
-    final sdnn = _computeSdnn(allRr);
-    final rmssd = _computeRmssd(allRr);
+    // HRV metrics come from session-runtime (artifact-filtered, authoritative)
+    final hsi = session.lastHsiMetrics ?? {};
 
     return {
       'hr_mean_bpm': double.parse(meanBpm.toStringAsFixed(1)),
-      'hr_sdnn_ms': double.parse(sdnn.toStringAsFixed(2)),
-      'rmssd_ms': double.parse(rmssd.toStringAsFixed(2)),
-      'sample_count': samples.length,
-      'start_ms': samples.first.timestampMs,
-      'end_ms': samples.last.timestampMs,
+      'hr_sdnn_ms': (hsi['hrv.sdnn_ms'] as num?)?.toDouble() ?? 0.0,
+      'rmssd_ms': (hsi['hrv.rmssd_ms'] as num?)?.toDouble() ?? 0.0,
+      'pnn50': (hsi['hrv.pnn50'] as num?)?.toDouble() ?? 0.0,
+      'sample_count': sampleCount,
+      'start_ms': sampleCount > 0 ? samples.first.timestampMs : nowMs,
+      'end_ms': sampleCount > 0 ? samples.last.timestampMs : nowMs,
       'session_id': config.sessionId,
       'mode': config.mode.value,
       'seq': session.seq,
     };
-  }
-
-  static double _computeSdnn(List<double> rrIntervals) {
-    if (rrIntervals.length < 2) return 0;
-    final mean = rrIntervals.reduce((a, b) => a + b) / rrIntervals.length;
-    final variance =
-        rrIntervals
-            .map((rr) => (rr - mean) * (rr - mean))
-            .reduce((a, b) => a + b) /
-        rrIntervals.length;
-    return sqrt(variance);
-  }
-
-  static double _computeRmssd(List<double> rrIntervals) {
-    if (rrIntervals.length < 2) return 0;
-    var sumSquaredDiffs = 0.0;
-    for (var i = 1; i < rrIntervals.length; i++) {
-      final diff = rrIntervals[i] - rrIntervals[i - 1];
-      sumSquaredDiffs += diff * diff;
-    }
-    return sqrt(sumSquaredDiffs / (rrIntervals.length - 1));
   }
 }
 
@@ -302,6 +268,7 @@ class _RunningSession {
   Timer? timer;
   Timer? durationTimer;
   StreamSubscription<dynamic>? hrSubscription;
+  Map<String, dynamic>? lastHsiMetrics;
 
   void dispose() {
     timer?.cancel();
