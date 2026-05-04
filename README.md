@@ -1,8 +1,13 @@
 # Synheart Session
 
 [![pub package](https://img.shields.io/pub/v/synheart_session.svg)](https://pub.dev/packages/synheart_session)
-[![CI](https://github.com/synheart-ai/synheart-session-dart/actions/workflows/ci.yml/badge.svg)](https://github.com/synheart-ai/synheart-session-dart/actions/workflows/ci.yml)
+[![CI](https://github.com/synheart-ai/synheart-session-flutter/actions/workflows/ci.yml/badge.svg)](https://github.com/synheart-ai/synheart-session-flutter/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+
+> **Source-available.** This repository is open for reading, auditing, and
+> filing issues. We do **not** accept pull requests — see
+> [CONTRIBUTING.md](CONTRIBUTING.md) for the rationale and how to contribute
+> via issues. Security reports go through [SECURITY.md](SECURITY.md).
 
 Dart / Flutter SDK for Synheart Session — stream-based session API with typed events for HR metrics and behavioral signals.
 
