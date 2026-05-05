@@ -233,7 +233,7 @@ IDLE → startSession() → SessionStarted
 
 ## Standalone vs Core SDK
 
-**With Synheart Core SDK:** HRV metrics (SDNN, RMSSD, pNN50) are automatically piped from the Rust session-runtime via `ingestHsiMetrics()`. No action needed — the core SDK wires this up during session lifecycle.
+**With Synheart Core SDK:** HRV metrics (SDNN, RMSSD, pNN50) are automatically piped from the Synheart Runtime via `ingestHsiMetrics()`. No action needed — the core SDK wires this up during session lifecycle.
 
 **Standalone (without core SDK):** Your app must call `engine.ingestHsiMetrics(sessionId, metrics)` with pre-computed HRV values. If not called, HRV metrics default to `0.0` — mean HR is still computed locally from the sample buffer.
 

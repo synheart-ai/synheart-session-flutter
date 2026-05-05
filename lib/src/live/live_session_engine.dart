@@ -165,7 +165,7 @@ class LiveSessionEngine {
     return bp.currentSnapshot()?.toJson();
   }
 
-  /// Ingest pre-computed HRV metrics from the Rust runtime (session-runtime).
+  /// Ingest pre-computed HRV metrics from the Synheart Runtime.
   /// These are artifact-filtered and authoritative — the session SDK does not
   /// compute HRV locally.
   void ingestHsiMetrics(String sessionId, Map<String, dynamic> hsiMetrics) {
