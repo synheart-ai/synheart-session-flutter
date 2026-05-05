@@ -1,7 +1,7 @@
 import 'package:meta/meta.dart';
 
 /// A point-in-time snapshot of behavioral signals.
-/// Mirrors `BehaviorStats` from synheart-behavior-dart field-for-field
+/// Mirrors `BehaviorStats` from synheart_behavior field-for-field
 /// but lives in synheart_session to avoid an import dependency.
 @immutable
 class BehaviorSnapshot {

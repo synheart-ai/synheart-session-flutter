@@ -54,5 +54,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configurable `ComputeProfile` (window size, emit interval).
 - Tests: `mock_session_test.dart`, `session_test.dart`, `behavior_provider_test.dart`, `live_session_engine_test.dart`, `types_test.dart`.
 
-[0.2.0]: https://github.com/synheart-ai/synheart-session-dart/releases/tag/v0.2.0
-[0.1.0]: https://github.com/synheart-ai/synheart-session-dart/releases/tag/v0.1.0
+[0.2.0]: https://github.com/synheart-ai/synheart-session-flutter/releases/tag/v0.2.0
+[0.1.0]: https://github.com/synheart-ai/synheart-session-flutter/releases/tag/v0.1.0
