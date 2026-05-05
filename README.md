@@ -15,7 +15,7 @@ Dart / Flutter SDK for Synheart Session — stream-based session API with typed 
 
 - Pluggable BiosignalProvider interface for any HR source (BLE HRM, HealthKit, mock)
 - Optional BehaviorProvider interface for behavioral signal fusion (typing, scrolling, taps)
-- Dart-side `LiveSessionEngine` with HRV metrics (SDNN, RMSSD, pNN50) from session-runtime; mean HR computed locally
+- Dart-side `LiveSessionEngine` with HRV metrics (SDNN, RMSSD, pNN50) from the Synheart Runtime; mean HR computed locally
 - Watch relay — Apple Watch (WCSession) and Wear OS (Wearable Data Layer)
 - Built-in mock engine for local development and testing (no wearable required)
 - Type-safe session events: `SessionStarted`, `SessionFrame`, `SessionSummary`, `SessionError`
@@ -158,7 +158,7 @@ SynheartSession (Dart)
      ├── LiveSessionEngine [Dart]
      │    ├── BiosignalProvider.startStreaming() → _HrRingBuffer
      │    ├── BehaviorProvider.currentSnapshot() [sync at each tick]
-     │    ├── _computeMetrics() [mean HR local + HRV from session-runtime]
+     │    ├── _computeMetrics() [mean HR local + HRV from Synheart Runtime]
      │    └── Timer.periodic → SessionFrame / SessionSummary
      │
      └── SessionChannel (watch relay — iOS + Android)

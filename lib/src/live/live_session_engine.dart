@@ -188,7 +188,7 @@ class LiveSessionEngine {
         ? samples.map((s) => s.bpm).reduce((a, b) => a + b) / sampleCount
         : 0.0;
 
-    // HRV metrics come from session-runtime (artifact-filtered, authoritative)
+    // HRV metrics come from the Synheart Runtime (artifact-filtered, authoritative)
     final hsi = session.lastHsiMetrics ?? {};
 
     return {
