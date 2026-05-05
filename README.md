@@ -285,7 +285,7 @@ When a session starts on the phone, the companion app starts a workout/exercise 
 
 | Package | Description |
 |---------|-------------|
-| `synheart_wear` | Unified wearable SDK — Apple Watch, Fitbit, Garmin, BLE HRM |
+| `synheart_wear` | Unified wearable SDK — Apple Watch, Fitbit, Garmin (RTS requires a Garmin Health SDK license — see [`synheart-wear-flutter/docs/GARMIN_SETUP.md`](https://github.com/synheart-ai/synheart-wear-flutter/blob/main/docs/GARMIN_SETUP.md)), Whoop |
 | `synheart_behavior` | Digital behavioral signals — typing, scrolling, taps, app switches |
 
 ## Links
