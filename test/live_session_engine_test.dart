@@ -178,9 +178,7 @@ void main() {
 
     test('ingestHsiMetrics for unknown session is a no-op', () {
       // Should not throw
-      engine.ingestHsiMetrics('nonexistent-session', {
-        'hrv.sdnn_ms': 50.0,
-      });
+      engine.ingestHsiMetrics('nonexistent-session', {'hrv.sdnn_ms': 50.0});
     });
   });
 }
