@@ -235,11 +235,11 @@ IDLE → startSession() → SessionStarted
 
 **With Synheart Core SDK:** HRV metrics (SDNN, RMSSD, pNN50) are automatically piped from the Synheart Runtime via `ingestHsiMetrics()`. No action needed — the core SDK wires this up during session lifecycle.
 
-**Standalone (without core SDK):** Your app must call `engine.ingestHsiMetrics(sessionId, metrics)` with pre-computed HRV values. If not called, HRV metrics default to `0.0` — mean HR is still computed locally from the sample buffer.
+**Standalone (without core SDK):** Your app must call `session.ingestHsiMetrics({...})` with pre-computed HRV values. If not called, HRV metrics default to `0.0` — mean HR is still computed locally from the sample buffer.
 
 ```dart
 // Standalone usage: manually provide HRV
-engine.ingestHsiMetrics(sessionId, {
+session.ingestHsiMetrics({
   'hrv.sdnn_ms': 42.5,
   'hrv.rmssd_ms': 38.1,
   'hrv.pnn50': 21.3,

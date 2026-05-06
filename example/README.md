@@ -25,6 +25,6 @@ stream.listen((event) {
 });
 ```
 
-In production mode, behavioral data flows automatically from the native `SessionEngine` when a `BehaviorProvider` is configured on the native side.
+In production mode, behavioral data flows automatically when a `BehaviorProvider` is wired into `LiveSessionEngine` on the Dart side.
 
 See `lib/main.dart` for the full source.
