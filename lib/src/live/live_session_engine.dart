@@ -165,7 +165,7 @@ class LiveSessionEngine {
     return bp.currentSnapshot()?.toJson();
   }
 
-  /// Ingest pre-computed HRV metrics from the Synheart Runtime.
+  /// Ingest pre-computed pre-computed HRV metrics.
   /// These are artifact-filtered and authoritative — the session SDK does not
   /// compute HRV locally.
   void ingestHsiMetrics(String sessionId, Map<String, dynamic> hsiMetrics) {
@@ -188,7 +188,7 @@ class LiveSessionEngine {
         ? samples.map((s) => s.bpm).reduce((a, b) => a + b) / sampleCount
         : 0.0;
 
-    // HRV metrics come from the Synheart Runtime (artifact-filtered, authoritative)
+    // HRV metrics are supplied by the host (typically the Synheart Core SDK)
     final hsi = session.lastHsiMetrics ?? {};
 
     return {
