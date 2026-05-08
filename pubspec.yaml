@@ -1,0 +1,37 @@
+name: synheart_session
+description: Flutter SDK for live HR/HRV session tracking — typed event streams driven by pluggable biosignal and behavior providers.
+version: 0.2.0
+homepage: https://github.com/synheart-ai/synheart-session-flutter
+repository: https://github.com/synheart-ai/synheart-session-flutter
+issue_tracker: https://github.com/synheart-ai/synheart-session-flutter/issues
+license: Apache-2.0
+topics:
+  - session
+  - biosignals
+  - wearable
+  - flutter
+  - hrv
+
+environment:
+  sdk: '>=3.8.0 <4.0.0'
+  flutter: '>=3.22.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  meta: ^1.16.0
+  uuid: ^4.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  very_good_analysis: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: SynheartSessionPlugin
+      android:
+        package: ai.synheart.session
+        pluginClass: SynheartSessionPlugin
