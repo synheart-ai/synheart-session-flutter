@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `SessionMode.typing` (`"typing"`).
+
+### Fixed
+- **Android: the watch message listener is held only while a session
+  runs.** `WatchSessionRelay` registered its `MessageClient` listener in
+  its constructor and removed it only on `dispose`, so a relay received
+  watch messages when no session was active. The listener is now added by
+  `startSession` and removed when the session ends (stop, end from the
+  watch, or dispose).
+
 ## [0.2.0] - 2026-05-06
 
 Initial open-source release of the Synheart Session SDK for Flutter.
