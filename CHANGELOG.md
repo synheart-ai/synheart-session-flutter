@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-25
+
+Minor bump, not a patch: a new `SessionMode` value breaks an exhaustive
+`switch` over it in Dart 3.
+
+### Added
+- `SessionMode.typing` (`"typing"`).
+
+### Fixed
+- **Android: the watch message listener is held only while a session
+  runs.** `WatchSessionRelay` registered its `MessageClient` listener in
+  its constructor and removed it only on `dispose`, so a relay received
+  watch messages when no session was active. The listener is now added by
+  `startSession` and removed when the session ends (stop, end from the
+  watch, or dispose).
+
 ## [0.2.0] - 2026-05-06
 
 Initial open-source release of the Synheart Session SDK for Flutter.
@@ -37,5 +53,6 @@ emits typed session events: `SessionStarted`, `BiosignalFrame`,
 - Android API 21+ (Android 5.0+)
 - Flutter 3.22.0+
 
-[Unreleased]: https://github.com/synheart-ai/synheart-session-flutter/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/synheart-ai/synheart-session-flutter/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/synheart-ai/synheart-session-flutter/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/synheart-ai/synheart-session-flutter/releases/tag/v0.2.0

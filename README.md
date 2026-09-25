@@ -27,7 +27,7 @@ Dart / Flutter SDK for Synheart Session — stream-based session API with typed 
 
 ```yaml
 dependencies:
-  synheart_session: ^0.2.0
+  synheart_session: ^0.3.0
 ```
 
 ```bash

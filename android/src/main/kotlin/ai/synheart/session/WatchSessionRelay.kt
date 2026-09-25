@@ -42,10 +42,7 @@ class WatchSessionRelay(private val context: Context) : MessageClient.OnMessageR
 
     private var eventCallback: ((Map<String, Any?>) -> Unit)? = null
     private var activeSessionId: String? = null
-
-    init {
-        messageClient.addListener(this)
-    }
+    private var listening: Boolean = false
 
     // -- Status ---------------------------------------------------------------
 
@@ -129,6 +126,10 @@ class WatchSessionRelay(private val context: Context) : MessageClient.OnMessageR
     fun startSession(config: Map<String, Any?>, callback: (Map<String, Any?>) -> Unit) {
         activeSessionId = config["session_id"] as? String
         eventCallback = callback
+        if (!listening) {
+            messageClient.addListener(this)
+            listening = true
+        }
 
         val message = JSONObject().apply {
             put("command", "start_session")
@@ -217,7 +218,6 @@ class WatchSessionRelay(private val context: Context) : MessageClient.OnMessageR
     // -- Lifecycle ------------------------------------------------------------
 
     fun dispose() {
-        messageClient.removeListener(this)
         cleanup()
         scope.cancel()
     }
@@ -225,6 +225,10 @@ class WatchSessionRelay(private val context: Context) : MessageClient.OnMessageR
     private fun cleanup() {
         activeSessionId = null
         eventCallback = null
+        if (listening) {
+            messageClient.removeListener(this)
+            listening = false
+        }
     }
 
     // -- Helpers --------------------------------------------------------------

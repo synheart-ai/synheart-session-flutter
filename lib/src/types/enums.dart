@@ -1,6 +1,7 @@
 enum SessionMode {
   focus('focus'),
-  breathing('breathing');
+  breathing('breathing'),
+  typing('typing');
 
   const SessionMode(this.value);
 
