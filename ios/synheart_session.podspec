@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'synheart_session'
-  s.version          = '0.2.0'
+  s.version          = '0.3.0'
   s.summary          = 'iOS implementation of Synheart Session plugin.'
   s.homepage         = 'https://github.com/synheart-ai/synheart-session-flutter'
   s.license          = { :type => 'Apache-2.0' }
