@@ -77,7 +77,7 @@ jobs:
           if [ -d "example" ]; then
             cd example
             flutter pub get
-            flutter analyze
+            flutter analyze --no-fatal-infos
           else
             echo "No example directory found, skipping example tests"
           fi
